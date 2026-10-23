@@ -25,3 +25,10 @@ dist-ssr
 
 # Local backups made while restructuring the app
 _backup_pre_ux/
+
+# Code-signing material: never commit
+*.p12
+*.cer
+*.certSigningRequest
+certificate-base64.txt
+*.env

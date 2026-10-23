@@ -1,0 +1,116 @@
+# Builds Image Viewer for macOS (Apple Silicon) and Windows, and
+# uploads the installers to a draft GitHub Release. Mac builds are signed with
+# a Developer ID certificate and notarized; see the secrets listed below.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   APPLE_CERTIFICATE           base64 of the exported Developer ID .p12
+#   APPLE_CERTIFICATE_PASSWORD  password you set when exporting the .p12
+#   APPLE_SIGNING_IDENTITY      "Developer ID Application: Your Name (TEAMID)"
+#   APPLE_ID                    your Apple Account email
+#   APPLE_PASSWORD              an app-specific password (not your real one)
+#   APPLE_TEAM_ID               your 10-character Team ID
+#
+# Trigger: push a tag that matches the version in src-tauri/tauri.conf.json
+#   git tag v0.1.0 && git push origin v0.1.0
+# or run it by hand from the Actions tab ("Run workflow").
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write # needed to create the release and upload assets
+    strategy:
+      fail-fast: false # one platform failing shouldn't cancel the others
+      matrix:
+        include:
+          - platform: macos-latest # Apple Silicon runner
+            args: --target aarch64-apple-darwin
+          - platform: windows-latest
+            args: ""
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Catch "tagged v0.2.0 but forgot to bump tauri.conf.json" before a
+      # 10-minute build produces a release with the wrong version.
+      - name: Check tag matches app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          APP_VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "${GITHUB_REF_NAME#v}" != "$APP_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match tauri.conf.json version $APP_VERSION"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
+
+      # Caches compiled crates between runs: cold builds take ~10 min, cached ~3.
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          key: ${{ matrix.args }}
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # Put the Developer ID certificate in a temporary keychain so codesign
+      # can use it. The keychain password is random and only lives for this run.
+      - name: Import Apple Developer ID certificate
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm certificate.p12
+          security find-identity -v -p codesigning build.keychain
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS: Developer ID signing (identity from the keychain step above)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # macOS: notarization with an app-specific password
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          # __VERSION__ is replaced with the version from tauri.conf.json
+          tagName: v__VERSION__
+          releaseName: Image Viewer v__VERSION__
+          releaseBody: |
+            Downloads:
+            - **Mac (Apple Silicon, M1 or later):** the `aarch64.dmg`
+            - **Windows:** the `x64-setup.exe` (or the `.msi`)
+
+            The Mac builds are signed and notarized by Apple.
+            The Windows build isn't signed yet, so SmartScreen may show
+            "Windows protected your PC": click "More info" → "Run anyway".
+          releaseDraft: true # review, then publish by hand
+          prerelease: false
+          args: ${{ matrix.args }}
