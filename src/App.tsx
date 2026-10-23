@@ -10,7 +10,6 @@ import { Library, THUMB_MAX, THUMB_MIN, type SortKey } from "./components/Librar
 import { Viewer } from "./components/Viewer";
 import { ShortcutsOverlay, Toast, type ToastState } from "./components/Overlays";
 import "./App.css";
-import { invoke } from "@tauri-apps/api/core";
 
 const UNDO_MS = 5000;
 

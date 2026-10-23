@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Image Viewer",
   "version": "0.1.0",
-  "identifier": "com.avirup171.image_viewer",
+  "identifier": "com.avirup171.image-viewer",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
