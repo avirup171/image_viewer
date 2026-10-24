@@ -156,4 +156,4 @@ The workflow needs these repository secrets for macOS signing: `APPLE_CERTIFICAT
 
 ## License
 
-[Choose a license, e.g. MIT, and add a `LICENSE` file.]
+Released under the [MIT License](LICENSE). Copyright © 2026 Avirup Basu.
