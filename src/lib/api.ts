@@ -2,7 +2,9 @@
 // `invoke` in one file means the TS types and the Rust structs are easy to
 // compare when one of them changes.
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
+import type { EditOp, EditResult, SaveMode } from "../edit/types";
 
+/** `modified` is milliseconds since 1970. */
 export type ImageEntry = { path: string; name: string; size: number; modified: number };
 
 export type Folder = {
@@ -29,11 +31,20 @@ export const IMAGE_EXTS = ["jpg", "jpeg", "png", "gif", "webp", "bmp"];
 export const openPath = (path: string) => invoke<Folder>("open_path", { path });
 export const trashImage = (path: string) => invoke<void>("trash_image", { path });
 export const getImageInfo = (path: string) => invoke<ImageInfo>("image_info", { path });
+/** Crop (and future edits) in Rust, then save as a copy or replace the original. */
+export const applyEdits = (path: string, ops: EditOp[], mode: SaveMode) =>
+  invoke<EditResult>("apply_edits", { path, ops, mode });
+
+/**
+ * Changes whenever the file does. Added to image URLs as `?v=…` so the webview
+ * reloads a file that was replaced in place (Tauri ignores the query string).
+ */
+export const versionOf = (e: ImageEntry) => `${e.modified}-${e.size}`;
 
 /** Full-size image, served as-is by Tauri's asset protocol. */
-export const fullSrc = (path: string) => convertFileSrc(path);
+export const fullSrc = (e: ImageEntry) => `${convertFileSrc(e.path)}?v=${versionOf(e)}`;
 /** Small cached preview, served by our own thumb:// protocol (thumbs.rs). */
-export const thumbSrc = (path: string) => convertFileSrc(path, "thumb");
+export const thumbSrc = (e: ImageEntry) => `${convertFileSrc(e.path, "thumb")}?v=${versionOf(e)}`;
 
 export const isMac = navigator.userAgent.includes("Mac");
 export const modKey = isMac ? "⌘" : "Ctrl+";
@@ -50,9 +61,9 @@ export function formatBytes(n: number): string {
   return `${v.toFixed(v < 10 ? 1 : 0)} ${units[u]}`;
 }
 
-export function formatDate(unixSeconds: number): string {
-  if (!unixSeconds) return "—";
-  return new Date(unixSeconds * 1000).toLocaleString(undefined, {
+export function formatDate(unixMillis: number): string {
+  if (!unixMillis) return "—";
+  return new Date(unixMillis).toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   });

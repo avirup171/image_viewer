@@ -97,6 +97,18 @@ export const PlusIcon = (p: P) => (
     <path d="M12 5v14M5 12h14" />
   </Icon>
 );
+export const CropIcon = (p: P) => (
+  <Icon {...p}>
+    <path d="M6 2v14a2 2 0 0 0 2 2h14" />
+    <path d="M18 22V8a2 2 0 0 0-2-2H2" />
+  </Icon>
+);
+export const SwapIcon = (p: P) => (
+  <Icon {...p}>
+    <rect x="3" y="7" width="12" height="9" rx="1.5" />
+    <rect x="12" y="3" width="9" height="12" rx="1.5" strokeDasharray="2.5 2.5" />
+  </Icon>
+);
 export const KeyboardIcon = (p: P) => (
   <Icon {...p}>
     <rect x="2.5" y="6" width="19" height="12" rx="2" />

@@ -22,12 +22,14 @@ pub fn has_image_ext(path: &Path) -> bool {
         .is_some_and(|e| EXTS.contains(&e.to_ascii_lowercase().as_str()))
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct ImageEntry {
-    path: String,
-    name: String,
-    size: u64,
-    modified: u64,
+    pub path: String,
+    pub name: String,
+    pub size: u64,
+    /// Last modified, in milliseconds since 1970. The frontend also uses
+    /// it (with `size`) to bust caches after an edit replaces a file.
+    pub modified: u64,
 }
 
 #[derive(Serialize)]
@@ -44,6 +46,25 @@ pub struct Folder {
     selected: Option<String>,
 }
 
+fn entry_from(path: &Path, meta: &fs::Metadata) -> ImageEntry {
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map_or(0, |d| d.as_millis() as u64);
+    ImageEntry {
+        name: path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        path: path.to_string_lossy().into_owned(),
+        size: meta.len(),
+        modified,
+    }
+}
+
+/// The entry for a single file, e.g. one an edit just wrote.
+pub fn entry_for(path: &Path) -> AppResult<ImageEntry> {
+    Ok(entry_from(path, &fs::metadata(path)?))
+}
+
 fn scan(dir: &Path) -> AppResult<Vec<ImageEntry>> {
     let mut out = Vec::new();
     for entry in fs::read_dir(dir)? {
@@ -58,17 +79,7 @@ fn scan(dir: &Path) -> AppResult<Vec<ImageEntry>> {
         if !meta.is_file() {
             continue;
         }
-        let modified = meta
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-            .map_or(0, |d| d.as_secs());
-        out.push(ImageEntry {
-            name: entry.file_name().to_string_lossy().into_owned(),
-            path: path.to_string_lossy().into_owned(),
-            size: meta.len(),
-            modified,
-        });
+        out.push(entry_from(&path, &meta));
     }
     // The frontend re-sorts by the user's choice; name order is a sane default.
     out.sort_by_cached_key(|e| e.name.to_lowercase());
