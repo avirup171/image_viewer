@@ -14,7 +14,7 @@ use std::{
     time::UNIX_EPOCH,
 };
 
-use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, codecs::jpeg::JpegEncoder};
+use image::{ImageFormat, codecs::jpeg::JpegEncoder};
 use percent_encoding::percent_decode_str;
 use tauri::{
     Manager, Runtime, UriSchemeContext, UriSchemeResponder,
@@ -23,6 +23,7 @@ use tauri::{
 
 use crate::{
     error::{AppError, AppResult},
+    imaging,
     library::has_image_ext,
     state::AppState,
 };
@@ -117,10 +118,7 @@ fn make_thumb(src: &Path, cache_dir: &Path) -> AppResult<Thumb> {
     }
 
     // Decode, honouring EXIF orientation so portrait photos aren't sideways.
-    let mut decoder = ImageReader::open(src)?.with_guessed_format()?.into_decoder()?;
-    let orientation = decoder.orientation()?;
-    let mut img = DynamicImage::from_decoder(decoder)?;
-    img.apply_orientation(orientation);
+    let img = imaging::open_oriented(src)?.image;
 
     // `thumbnail` is a fast resize that keeps aspect ratio and never upscales
     // past THUMB_MAX on the longest edge.

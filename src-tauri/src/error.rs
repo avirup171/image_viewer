@@ -13,6 +13,10 @@ pub enum AppError {
     #[error("Not allowed: {0}")]
     Forbidden(String),
     #[error("{0}")]
+    InvalidEdit(String),
+    #[error("Editing {0} images isn't supported")]
+    UnsupportedFormat(String),
+    #[error("{0}")]
     Other(String),
 }
 

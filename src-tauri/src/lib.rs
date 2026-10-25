@@ -1,4 +1,6 @@
+mod edit;
 mod error;
+mod imaging;
 mod info;
 mod library;
 mod state;
@@ -22,6 +24,7 @@ pub fn run() {
             library::open_path,
             library::trash_image,
             info::image_info,
+            edit::apply_edits,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

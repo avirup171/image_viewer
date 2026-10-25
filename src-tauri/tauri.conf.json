@@ -42,6 +42,8 @@
     "shortDescription": "A fast, simple image viewer",
     "macOS": {
       "signingIdentity": "-"
-    }
+    },
+    "copyright": "Copyright © 2026 Avirup Basu",
+    "license": "MIT"
   }
 }

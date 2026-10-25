@@ -30,6 +30,7 @@ const SHORTCUTS: [string, string, string][] = [
   ["Esc", "Clear filter", "Back to grid"],
   ["+ / −", "Thumbnail size", "Zoom in / out"],
   ["0 / 1", "—", "Fit / 100%"],
+  ["C", "Crop", "Crop"],
   ["R", "—", "Rotate (view only)"],
   ["I", "—", "Toggle info"],
   ["F", "—", "Full screen"],
@@ -38,6 +39,13 @@ const SHORTCUTS: [string, string, string][] = [
   [`${modKey}F`, "Filter by name", "—"],
   [`${modKey}O`, "Open folder", "Open folder"],
   ["?", "This list", "This list"],
+];
+
+const EDITOR_SHORTCUTS: [string, string][] = [
+  ["Drag", "Move or resize the crop box; drag outside it to draw a new one"],
+  ["← → ↑ ↓", "Nudge the crop box (Shift: 10 px)"],
+  [`${modKey}S`, "Save as copy"],
+  ["Esc", "Cancel editing"],
 ];
 
 export function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
@@ -72,6 +80,19 @@ export function ShortcutsOverlay({ onClose }: { onClose: () => void }) {
                 </td>
                 <td>{g}</td>
                 <td>{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <h3 className="eyebrow shortcuts-heading">Editor</h3>
+        <table className="shortcuts">
+          <tbody>
+            {EDITOR_SHORTCUTS.map(([k, what]) => (
+              <tr key={k}>
+                <td>
+                  <kbd>{k}</kbd>
+                </td>
+                <td>{what}</td>
               </tr>
             ))}
           </tbody>

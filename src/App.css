@@ -271,3 +271,80 @@ select {
 .shortcuts th { text-align: left; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 6px 8px; }
 .shortcuts td { padding: 7px 8px; border-top: 1px solid var(--border); color: var(--text-2); }
 .shortcuts td:first-child { white-space: nowrap; }
+
+/* ---- shared additions ----------------------------------------------------- */
+.btn:disabled, .icon-btn:disabled { opacity: 0.4; cursor: default; }
+.btn:disabled:hover { background: var(--surface-2); }
+.btn.primary:disabled:hover { background: var(--accent); }
+.btn.danger-solid { background: #c94a4a; border-color: transparent; color: #fff; font-weight: 600; }
+.btn.danger-solid:hover { background: #d65c5c; }
+.tabular { font-variant-numeric: tabular-nums; }
+.error-text { color: var(--danger); min-width: 0; }
+
+/* Segmented control: a row of toggle buttons (aspect presets, tool tabs). */
+.segmented {
+  display: inline-flex; padding: 2px; gap: 2px; border-radius: 9px;
+  background: #1c1e22; border: 1px solid #33363c;
+}
+.segmented button {
+  height: 30px; padding: 0 10px; border: none; border-radius: 7px; background: transparent;
+  color: var(--text-2); font-size: 12px; font-weight: 500; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;
+}
+.segmented button:hover { color: var(--text); background: #26292e; }
+.segmented button[aria-pressed="true"], .segmented button[aria-selected="true"] {
+  background: var(--accent-soft); color: var(--accent);
+}
+
+/* ---- editor --------------------------------------------------------------- */
+.editor { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-viewer); }
+.editor-bar { background: #141518; border-bottom-color: #22252a; }
+.editor-name { max-width: 260px; }
+.editor-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.editor-canvas { position: absolute; }
+.editor-canvas > img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+.editor-footer {
+  min-height: 60px; flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 10px 16px; background: #141518; border-top: 1px solid #22252a; color: var(--text-2);
+}
+
+/* Crop overlay. The layer covers the image. The dim layer darkens everything
+   outside the box with a huge box-shadow on a "hole", clipped to the image. */
+.crop-layer { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
+.crop-dim { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.crop-hole { position: absolute; box-shadow: 0 0 0 9999px rgba(8, 9, 11, 0.62); }
+.crop-box {
+  position: absolute; box-sizing: border-box; cursor: move;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+.crop-grid { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+.crop-layer.dragging .crop-grid, .crop-box:hover .crop-grid { opacity: 1; }
+.crop-grid span { position: absolute; background: rgba(255, 255, 255, 0.35); }
+.crop-grid .v1, .crop-grid .v2 { top: 0; bottom: 0; width: 1px; }
+.crop-grid .h1, .crop-grid .h2 { left: 0; right: 0; height: 1px; }
+.crop-grid .v1 { left: 33.333%; } .crop-grid .v2 { left: 66.666%; }
+.crop-grid .h1 { top: 33.333%; } .crop-grid .h2 { top: 66.666%; }
+
+/* Handles: a visible 12px mark with a 28px invisible hit area around it. */
+.crop-handle { position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; z-index: 1; }
+.crop-handle::after {
+  content: ""; position: absolute; left: 8px; top: 8px; width: 12px; height: 12px;
+  background: #fff; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.crop-handle.h-n::after, .crop-handle.h-s::after { width: 20px; height: 6px; left: 4px; top: 11px; }
+.crop-handle.h-e::after, .crop-handle.h-w::after { width: 6px; height: 20px; left: 11px; top: 4px; }
+.h-nw { left: 0; top: 0; cursor: nwse-resize; }
+.h-n { left: 50%; top: 0; cursor: ns-resize; }
+.h-ne { left: 100%; top: 0; cursor: nesw-resize; }
+.h-e { left: 100%; top: 50%; cursor: ew-resize; }
+.h-se { left: 100%; top: 100%; cursor: nwse-resize; }
+.h-s { left: 50%; top: 100%; cursor: ns-resize; }
+.h-sw { left: 0; top: 100%; cursor: nesw-resize; }
+.h-w { left: 0; top: 50%; cursor: ew-resize; }
+
+/* Replace confirmation */
+.modal.confirm { max-width: 440px; display: flex; flex-direction: column; gap: 12px; }
+.modal.confirm h2 { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.modal.confirm p { line-height: 1.5; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.shortcuts-heading { margin: 18px 0 4px 8px; }

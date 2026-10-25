@@ -9,6 +9,8 @@ import { Welcome } from "./components/Welcome";
 import { Library, THUMB_MAX, THUMB_MIN, type SortKey } from "./components/Library";
 import { Viewer } from "./components/Viewer";
 import { ShortcutsOverlay, Toast, type ToastState } from "./components/Overlays";
+import { EditMode } from "./edit/EditMode";
+import { canEdit, type EditResult } from "./edit/types";
 import "./App.css";
 
 const UNDO_MS = 5000;
@@ -27,7 +29,7 @@ export default function App() {
   // ---- state ----------------------------------------------------------------
   const [folder, setFolder] = useState<Folder | null>(null);
   const [images, setImages] = useState<ImageEntry[]>([]);
-  const [view, setView] = useState<"grid" | "viewer">("grid");
+  const [view, setView] = useState<"grid" | "viewer" | "edit">("grid");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<SortKey>(() => load("sort", "name"));
@@ -62,7 +64,7 @@ export default function App() {
   // Keep a valid selection when the list changes; leave the viewer when empty.
   useEffect(() => {
     if (visible.length > 0 && selectedIndex === -1) setSelectedPath(visible[0].path);
-    if (visible.length === 0 && view === "viewer") setView("grid");
+    if (visible.length === 0 && view !== "grid") setView("grid");
   }, [visible, selectedIndex, view]);
 
   // ---- toasts -----------------------------------------------------------------
@@ -178,9 +180,41 @@ export default function App() {
     setView("viewer");
   }, []);
 
+  // ---- editing ---------------------------------------------------------------
+  function startEdit(entry: ImageEntry | undefined) {
+    if (!entry) return;
+    if (!canEdit(entry)) {
+      showToast("Only JPEG, PNG, WebP and BMP images can be edited.");
+      return;
+    }
+    commitPending();
+    setSelectedPath(entry.path);
+    setView("edit");
+  }
+
+  const handleSaved = useCallback(
+    (r: EditResult) => {
+      setImages((list) =>
+        r.replaced ? list.map((i) => (i.path === r.entry.path ? r.entry : i)) : [...list, r.entry],
+      );
+      // Make sure a new copy isn't hidden by the current filter.
+      setFilter((f) => (f && !r.entry.name.toLowerCase().includes(f.trim().toLowerCase()) ? "" : f));
+      setSelectedPath(r.entry.path);
+      setView("viewer");
+      showToast(
+        r.replaced ? `Replaced ${r.entry.name}. The original is in the Trash.` : `Saved as ${r.entry.name}`,
+        4000,
+      );
+    },
+    [showToast],
+  );
+
   // ---- window: drag & drop, full screen ----------------------------------
   const openAtRef = useRef(openAt);
   openAtRef.current = openAt;
+  // Read inside the drag-and-drop listener, which is registered only once.
+  const viewRef = useRef(view);
+  viewRef.current = view;
   useEffect(() => {
     // The listener is registered asynchronously; `cancelled` handles React
     // StrictMode mounting effects twice in dev.
@@ -189,6 +223,8 @@ export default function App() {
     getCurrentWebview()
       .onDragDropEvent((event) => {
         const t = event.payload.type;
+        // Dropping a file while editing would throw away the edit, so ignore it.
+        if (viewRef.current === "edit") return;
         if (t === "enter" || t === "over") setDragging(true);
         else if (t === "leave") setDragging(false);
         else if (t === "drop") {
@@ -259,6 +295,8 @@ export default function App() {
       }
       return;
     }
+    // The editor handles its own keys (EditMode.tsx).
+    if (view === "edit") return;
     if (mod && k.toLowerCase() === "o") {
       e.preventDefault();
       pickFolder();
@@ -323,6 +361,11 @@ export default function App() {
           e.preventDefault();
           requestTrash(visible[i]);
           return;
+        case "c":
+        case "C":
+          e.preventDefault();
+          startEdit(visible[i]);
+          return;
         default:
           return;
       }
@@ -359,6 +402,10 @@ export default function App() {
       case "F":
         toggleFullscreen();
         break;
+      case "c":
+      case "C":
+        startEdit(visible[i]);
+        break;
       case "Backspace":
       case "Delete":
         requestTrash(visible[i]);
@@ -386,6 +433,17 @@ export default function App() {
         onOpenRecent={openRecent}
       />
     );
+  } else if (view === "edit" && selectedIndex >= 0) {
+    const entry = visible[selectedIndex];
+    screen = (
+      <EditMode
+        // a fresh editor per file (and per version, after a replace)
+        key={`${entry.path}|${entry.modified}`}
+        entry={entry}
+        onCancel={() => setView("viewer")}
+        onSaved={handleSaved}
+      />
+    );
   } else if (view === "viewer" && selectedIndex >= 0) {
     screen = (
       <Viewer
@@ -401,6 +459,7 @@ export default function App() {
         onTrash={requestTrash}
         onReveal={reveal}
         onCopyPath={copyPath}
+        onEdit={canEdit(visible[selectedIndex]) ? () => startEdit(visible[selectedIndex]) : undefined}
         keysDisabled={showShortcuts}
       />
     );

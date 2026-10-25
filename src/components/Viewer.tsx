@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type MouseEvent } from "react";
-import { fullSrc, thumbSrc, type ImageEntry } from "../lib/api";
+import { fullSrc, thumbSrc, versionOf, type ImageEntry } from "../lib/api";
 import { useImageInfo } from "../lib/useImageInfo";
 import { InfoPanel } from "./InfoPanel";
 import {
   ChevronLeftIcon,
+  CropIcon,
   ChevronRightIcon,
   ExitFullscreenIcon,
   FullscreenIcon,
@@ -32,6 +33,8 @@ type Props = {
   onTrash: (entry: ImageEntry) => void;
   onReveal: (path: string) => void;
   onCopyPath: (path: string) => void;
+  /** Open the editor for the current image; undefined when it can't be edited (e.g. GIF). */
+  onEdit?: () => void;
   keysDisabled: boolean;
 };
 
@@ -39,7 +42,7 @@ type Point = { x: number; y: number };
 
 /** Per-image view state. `zoom: null` means "fit to window". */
 type ViewState = {
-  path: string;
+  key: string; // path + version: a file replaced by an edit gets fresh state
   natural: { w: number; h: number } | null;
   failed: boolean;
   zoom: number | null;
@@ -47,8 +50,8 @@ type ViewState = {
   rotation: number; // degrees, multiple of 90
 };
 
-const fresh = (path: string): ViewState => ({
-  path,
+const fresh = (key: string): ViewState => ({
+  key,
   natural: null,
   failed: false,
   zoom: null,
@@ -66,11 +69,12 @@ export function Viewer(p: Props) {
 
   // Reset zoom/rotation when the image changes. Adjusting state during render
   // (instead of in an effect) avoids one frame drawn with the old image's size.
-  const [vs, setVs] = useState(() => fresh(entry.path));
-  if (vs.path !== entry.path) setVs(fresh(entry.path));
-  const v = vs.path === entry.path ? vs : fresh(entry.path);
+  const viewKey = `${entry.path}|${versionOf(entry)}`;
+  const [vs, setVs] = useState(() => fresh(viewKey));
+  if (vs.key !== viewKey) setVs(fresh(viewKey));
+  const v = vs.key === viewKey ? vs : fresh(viewKey);
 
-  const info = useImageInfo(p.infoOpen ? entry.path : null);
+  const info = useImageInfo(p.infoOpen ? entry.path : null, 0, versionOf(entry));
 
   // Track the stage size (it changes with the window and the info panel).
   useLayoutEffect(() => {
@@ -206,7 +210,7 @@ export function Viewer(p: Props) {
   useEffect(() => {
     for (const d of [1, -1]) {
       const n = p.images[p.index + d];
-      if (n) new Image().src = fullSrc(n.path);
+      if (n) new Image().src = fullSrc(n);
     }
   }, [p.index, p.images]);
 
@@ -261,7 +265,16 @@ export function Viewer(p: Props) {
             <ZoomInIcon />
           </button>
           <span className="divider" aria-hidden="true" />
-          <button className="icon-btn" onClick={() => rotate(90)} aria-label="Rotate 90°" title="Rotate (R)">
+          <button
+            className="icon-btn"
+            onClick={p.onEdit}
+            disabled={!p.onEdit}
+            aria-label="Crop"
+            title={p.onEdit ? "Crop (C)" : "This format can’t be edited"}
+          >
+            <CropIcon />
+          </button>
+          <button className="icon-btn" onClick={() => rotate(90)} aria-label="Rotate 90°" title="Rotate view (R)">
             <RotateIcon />
           </button>
           <button
@@ -296,15 +309,14 @@ export function Viewer(p: Props) {
         >
           {/* key: a new <img> per file, so a slow load never shows the old one */}
           <img
-            key={entry.path}
+            key={viewKey}
             className="stage-img"
-            src={fullSrc(entry.path)}
+            src={fullSrc(entry)}
             alt={entry.name}
             draggable={false}
             onLoad={(e) => {
               const img = e.currentTarget;
-              const path = entry.path;
-              setVs((s) => (s.path === path ? { ...s, natural: { w: img.naturalWidth, h: img.naturalHeight } } : s));
+              setVs((s) => (s.key === viewKey ? { ...s, natural: { w: img.naturalWidth, h: img.naturalHeight } } : s));
             }}
             onError={() => setVs((s) => ({ ...s, failed: true }))}
             style={
@@ -336,7 +348,7 @@ export function Viewer(p: Props) {
 
           {navigator && (
             <div className="navigator" style={{ width: navigator.w, height: navigator.h }} aria-hidden="true">
-              <img src={thumbSrc(entry.path)} alt="" draggable={false} />
+              <img src={thumbSrc(entry)} alt="" draggable={false} />
               <div
                 className="navigator-rect"
                 style={{
@@ -374,7 +386,7 @@ export function Viewer(p: Props) {
                 aria-label={img.name}
                 aria-current={i === p.index || undefined}
               >
-                <img src={thumbSrc(img.path)} alt="" draggable={false} />
+                <img src={thumbSrc(img)} alt="" draggable={false} />
               </button>
             );
           })}

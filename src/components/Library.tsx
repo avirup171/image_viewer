@@ -1,5 +1,5 @@
 import { memo, useEffect, useState, type RefObject } from "react";
-import { thumbSrc, formatBytes, modKey, type Folder, type ImageEntry } from "../lib/api";
+import { thumbSrc, formatBytes, modKey, versionOf, type Folder, type ImageEntry } from "../lib/api";
 import type { Recent } from "../lib/storage";
 import { useImageInfo } from "../lib/useImageInfo";
 import { ChevronRightIcon, FolderIcon, PlusIcon, SearchIcon } from "./Icons";
@@ -31,7 +31,7 @@ type Props = {
 export function Library(p: Props) {
   const selected = p.visible.find((i) => i.path === p.selectedPath) ?? null;
   // Debounced so holding an arrow key doesn't fire a request per tile.
-  const info = useImageInfo(selected?.path, 150);
+  const info = useImageInfo(selected?.path, 150, selected ? versionOf(selected) : "");
 
   // Keep the selected tile on screen when moving with the keyboard.
   useEffect(() => {
@@ -121,7 +121,8 @@ export function Library(p: Props) {
             >
               {p.visible.map((img) => (
                 <Tile
-                  key={img.path}
+                  // includes the version so an edited file reloads its thumbnail
+                  key={`${img.path}|${versionOf(img)}`}
                   entry={img}
                   selected={img.path === p.selectedPath}
                   onSelect={p.onSelect}
@@ -149,7 +150,7 @@ export function Library(p: Props) {
           </>
         )}
         <div className="spacer" />
-        <span className="hide-narrow">Double-click or ↵ to open · ⌫ to trash</span>
+        <span className="hide-narrow">Double-click or ↵ to open · C to crop · ⌫ to trash</span>
       </footer>
     </div>
   );
@@ -189,7 +190,7 @@ const Tile = memo(function Tile({ entry, selected, onSelect, onOpen }: TileProps
       <span className="tile-img" data-state={state}>
         {/* loading="lazy": only tiles near the viewport request a thumbnail */}
         <img
-          src={thumbSrc(entry.path)}
+          src={thumbSrc(entry)}
           alt=""
           loading="lazy"
           decoding="async"
