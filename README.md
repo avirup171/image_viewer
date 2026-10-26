@@ -10,11 +10,27 @@
 
 <p align="center">
   <a href="../../releases/latest"><b>Download the latest release</b></a>
+  &nbsp;·&nbsp; Current version: 0.1.1 &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 ![Library grid](docs/screenshot-grid.jpg)
 
 ![Viewer with the info panel open](docs/screenshot-viewer.jpg)
+
+## What's new in 0.1.1
+
+**Crop.** Press <kbd>C</kbd> in the grid or viewer, or click the crop button, to open the editor.
+
+![Crop editor with a 3:2 crop box](docs/screenshot-crop.jpg)
+
+- Drag the box to move it, drag its handles to resize it, or drag outside it to draw a new one. Arrow keys nudge it by 1 px (10 px with <kbd>Shift</kbd>).
+- Aspect presets: Free, Original, 1:1, 4:3, 3:2 and 16:9, each in portrait or landscape.
+- **Save as copy** (<kbd>⌘</kbd><kbd>S</kbd>) writes `photo (edited).jpg` next to the original. **Replace original** overwrites it after asking, and moves the original to the Trash so it can be restored.
+- Camera data (EXIF), date taken and colour profiles are kept, and phone photos stored sideways are cropped the way you see them.
+- Works with JPEG, PNG, WebP and BMP. Animated GIFs can't be edited.
+
+The full list of changes is in the [changelog](CHANGELOG.md).
 
 ## Features
 
