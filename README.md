@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="../../releases/latest"><b>Download the latest release</b></a>
-  &nbsp;·&nbsp; Current version: 0.1.1 &nbsp;·&nbsp;
+  &nbsp;·&nbsp; Current version: 0.1.2 &nbsp;·&nbsp;
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -18,17 +18,19 @@
 
 ![Viewer with the info panel open](docs/screenshot-viewer.jpg)
 
-## What's new in 0.1.1
+## What's new in 0.1.2
 
-**Crop.** Press <kbd>C</kbd> in the grid or viewer, or click the crop button, to open the editor.
+**Adjust colours.** Press <kbd>A</kbd> in the grid or viewer, or click the adjust button, to open the editor on the new Adjust panel.
+
+- Sliders for **temperature**, **brightness**, **contrast** and **saturation**, from −100 to +100.
+- A live preview that matches the saved file. It stays on while you crop, so a crop and an adjustment are saved together in one file.
+- <kbd>Tab</kbd> between sliders and use the arrow keys to change one (<kbd>Shift</kbd> for steps of 10). Double-click a slider to reset it, or use **Reset all**.
+- Switch between Crop and Adjust inside the editor with <kbd>C</kbd> and <kbd>A</kbd>.
+- As with crop: **Save as copy** or **Replace original** (the original goes to the Trash), and camera data and colour profiles are kept.
+
+The crop editor arrived in 0.1.1:
 
 ![Crop editor with a 3:2 crop box](docs/screenshot-crop.jpg)
-
-- Drag the box to move it, drag its handles to resize it, or drag outside it to draw a new one. Arrow keys nudge it by 1 px (10 px with <kbd>Shift</kbd>).
-- Aspect presets: Free, Original, 1:1, 4:3, 3:2 and 16:9, each in portrait or landscape.
-- **Save as copy** (<kbd>⌘</kbd><kbd>S</kbd>) writes `photo (edited).jpg` next to the original. **Replace original** overwrites it after asking, and moves the original to the Trash so it can be restored.
-- Camera data (EXIF), date taken and colour profiles are kept, and phone photos stored sideways are cropped the way you see them.
-- Works with JPEG, PNG, WebP and BMP. Animated GIFs can't be edited.
 
 The full list of changes is in the [changelog](CHANGELOG.md).
 
@@ -195,13 +197,16 @@ src-tauri/
 
 Releases are built by GitHub Actions (`.github/workflows/release.yml`) for macOS and Windows.
 
-1. Bump `version` in `src-tauri/tauri.conf.json` and `package.json`, and commit.
-2. Tag and push:
+1. On `dev`, bump `version` in `src-tauri/tauri.conf.json`, `package.json` and `src-tauri/Cargo.toml` (and commit the updated `Cargo.lock`). Update `CHANGELOG.md` and this README.
+2. Merge `dev` into `main` with a pull request.
+3. Tag the merged commit on `main` and push only that tag. The workflow checks that the tag matches `tauri.conf.json`:
    ```bash
-   git tag v0.2.0
-   git push origin main v0.2.0
+   git checkout main
+   git pull origin main
+   git tag -a v0.2.0 -m "Image Viewer 0.2.0"
+   git push origin v0.2.0
    ```
-3. The workflow builds, signs and notarizes the macOS app, builds the Windows installers, and uploads everything to a **draft** release. Review it, then publish.
+4. The workflow builds, signs and notarizes the macOS app, builds the Windows installers, and uploads everything to a **draft** release. Review it, then publish.
 
 The workflow needs these repository secrets for macOS signing: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`. It also needs **Settings → Actions → General → Workflow permissions** set to **Read and write**.
 

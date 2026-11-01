@@ -11,8 +11,8 @@ explain *why* when changing things, and keep the app simple. It's a viewer with 
 editing, not a photo editor.
 
 - Stack: **Tauri 2** (Rust backend) + **React 19 + TypeScript + Vite** frontend, plain CSS.
-- Current version: **0.1.1** (crop editor). Released versions: `v0.1.0`, `v0.1.1`.
-  Unreleased on `dev`: Adjust tool (temperature, brightness, contrast, saturation).
+- Current version: **0.1.2** (adjust tool: temperature, brightness, contrast, saturation).
+  Released versions: `v0.1.0`, `v0.1.1`; `v0.1.2` is being released.
 - Roadmap: rotate / flip, resize, live folder
   watching (`notify`), persisting folder access across restarts, Windows code signing, HEIC / RAW.
 

@@ -6,6 +6,8 @@ All notable changes to Image Viewer are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-01
+
 ### Added
 - **Adjust colours.** Press <kbd>A</kbd> in the grid or viewer, click the new adjust button, or switch tabs inside the editor.
   - Temperature, brightness, contrast and saturation sliders (-100 to +100) in a side panel.
@@ -59,6 +61,7 @@ First release.
 - Remembers window size, thumbnail size, sort order and recent folders.
 - Installers for macOS (Apple Silicon, `.dmg`) and Windows (`.msi` and `-setup.exe`), built by GitHub Actions.
 
-[Unreleased]: https://github.com/avirup171/image_viewer/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/avirup171/image_viewer/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/avirup171/image_viewer/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/avirup171/image_viewer/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/avirup171/image_viewer/releases/tag/v0.1.0
