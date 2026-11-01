@@ -7,6 +7,7 @@
 //   2. add it to `tools` in tools/index.ts
 //   3. add its op to `EditOp` in types.ts and to the Rust `EditOp` enum
 import type { ComponentType, ReactNode } from "react";
+import type { ColorMatrix } from "./colorMatrix";
 import type { EditOp, Size } from "./types";
 
 export type ToolProps<S> = {
@@ -36,6 +37,14 @@ export interface EditTool<S> {
   Controls?: ComponentType<ToolProps<S>>;
   /** Drawn on top of the image while this tool is active. */
   Overlay?: ComponentType<ToolProps<S>>;
+  /** A side panel beside the image while this tool is active (e.g. sliders). */
+  Panel?: ComponentType<ToolProps<S>>;
+  /**
+   * Live preview for colour changes, as a matrix (see colorMatrix.ts). It's
+   * applied to the image whichever tool is active, so cropping shows the
+   * adjusted colours. Must match what the Rust operation does.
+   */
+  colorMatrix?(state: S): ColorMatrix;
   /** Keyboard handling while active. Return true if the key was used. */
   onKeyDown?(e: KeyboardEvent, props: ToolProps<S>): boolean;
 }

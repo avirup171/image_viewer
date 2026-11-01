@@ -13,7 +13,10 @@
 //!    `src/edit/tools/`.
 //!
 //! Nothing else (loading, metadata, saving, the command) needs to change.
+//! Colour adjustments share `color.rs`; see `adjust.rs` for adding a slider.
 
+mod adjust;
+mod color;
 mod crop;
 mod output;
 
@@ -30,6 +33,7 @@ use crate::{
     state::AppState,
 };
 
+pub use adjust::Adjust;
 pub use crop::Crop;
 pub use output::SaveMode;
 
@@ -44,12 +48,14 @@ pub trait Operation {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum EditOp {
     Crop(Crop),
+    Adjust(Adjust),
 }
 
 impl EditOp {
     fn operation(&self) -> &dyn Operation {
         match self {
             EditOp::Crop(op) => op,
+            EditOp::Adjust(op) => op,
         }
     }
 }
@@ -120,6 +126,12 @@ mod tests {
         .unwrap();
         assert!(matches!(&ops[0], EditOp::Crop(c) if *c == Crop { x: 1, y: 2, width: 3, height: 4 }));
 
+        // Missing sliders default to 0.
+        let ops: Vec<EditOp> =
+            serde_json::from_str(r#"[{ "type": "adjust", "brightness": 10, "saturation": -5 }]"#).unwrap();
+        let want = Adjust { brightness: 10, saturation: -5, ..Default::default() };
+        assert!(matches!(&ops[0], EditOp::Adjust(a) if *a == want));
+
         let mode: SaveMode = serde_json::from_str(r#""newFile""#).unwrap();
         assert!(matches!(mode, SaveMode::NewFile));
         let mode: SaveMode = serde_json::from_str(r#""replace""#).unwrap();
@@ -160,6 +172,25 @@ mod tests {
         // A second save doesn't overwrite the first copy.
         let again = run_edit(src.clone(), &ops, SaveMode::NewFile).unwrap();
         assert_eq!(again.entry.path, dir.join("IMG_1 (edited 2).jpg").to_string_lossy());
+    }
+
+    #[test]
+    fn crop_then_adjust_saves_one_file_with_metadata() {
+        let dir = temp_dir("edit-adjust");
+        let src = dir.join("IMG_2.jpg");
+        write_jpeg(&src, 400, 300, "TestCam X1", 6);
+
+        let ops = [
+            EditOp::Crop(Crop { x: 0, y: 0, width: 100, height: 120 }),
+            EditOp::Adjust(Adjust { brightness: -100, saturation: -100, ..Default::default() }),
+        ];
+        let result = run_edit(src.clone(), &ops, SaveMode::NewFile).unwrap();
+        let out = image::open(&result.entry.path).unwrap().to_rgb8();
+        assert_eq!(out.dimensions(), (100, 120));
+        // Black and white: every pixel's channels are (nearly; JPEG) equal.
+        let p = out.get_pixel(50, 60).0;
+        assert!(p.iter().all(|&c| c.abs_diff(p[1]) <= 3), "{p:?}");
+        assert_eq!(read_exif(std::path::Path::new(&result.entry.path)), (Some(1), Some("TestCam X1".into())));
     }
 
     #[test]

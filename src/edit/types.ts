@@ -4,8 +4,17 @@ import type { ImageEntry } from "../lib/api";
 
 export type CropOp = { type: "crop"; x: number; y: number; width: number; height: number };
 
+/** Each slider is -100…100, 0 = unchanged. Rust: edit/adjust.rs. */
+export type AdjustOp = {
+  type: "adjust";
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  temperature: number;
+};
+
 /** Every operation the backend understands. Add new tools' ops to this union. */
-export type EditOp = CropOp;
+export type EditOp = CropOp | AdjustOp;
 
 /** "newFile" keeps the original; "replace" moves the original to the Trash. */
 export type SaveMode = "newFile" | "replace";

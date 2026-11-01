@@ -39,6 +39,7 @@ The full list of changes is in the [changelog](CHANGELOG.md).
 - **Viewer** with zoom toward the cursor, drag to pan, fit / 100%, view-only rotation, a navigator mini-map when zoomed in, and a filmstrip of nearby images.
 - **Info panel** with dimensions, file details and camera EXIF (camera, lens, focal length, aperture, shutter, ISO, date taken).
 - **Crop** with a draggable box, aspect presets (free, original, 1:1, 4:3, 3:2, 16:9, portrait or landscape), and keyboard nudging. Save the result as a new copy or replace the original. Camera data (EXIF) and colour profiles are kept, and a replaced original goes to the Trash.
+- **Adjust** temperature, brightness, contrast and saturation with sliders and a live preview that matches the saved file. Combine it with a crop in one save.
 - **Safe delete:** Move to Trash with a 5-second Undo. Files are never deleted permanently.
 - **Keyboard-first:** everything has a shortcut (press <kbd>?</kbd> in the app).
 - Remembers window size, thumbnail size, sort order and recent folders.
@@ -66,6 +67,7 @@ Intel Macs aren't supported at the moment.
 | <kbd>+</kbd> / <kbd>−</kbd> | Thumbnail size | Zoom in / out |
 | <kbd>0</kbd> / <kbd>1</kbd> | | Fit / 100% |
 | <kbd>C</kbd> | Crop | Crop |
+| <kbd>A</kbd> | Adjust colours | Adjust colours |
 | <kbd>R</kbd> | | Rotate (view only) |
 | <kbd>I</kbd> | | Toggle info panel |
 | <kbd>F</kbd> | | Full screen |
@@ -75,7 +77,9 @@ Intel Macs aren't supported at the moment.
 | <kbd>⌘</kbd><kbd>O</kbd> | Open folder | Open folder |
 | <kbd>?</kbd> | Show shortcuts | Show shortcuts |
 
-In the editor: drag the box or its handles (drag outside it to draw a new one), <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> to nudge it (<kbd>Shift</kbd> for 10 px), <kbd>⌘</kbd><kbd>S</kbd> to save as a copy, <kbd>Esc</kbd> to cancel.
+In the editor: <kbd>C</kbd> / <kbd>A</kbd> switch between Crop and Adjust, <kbd>⌘</kbd><kbd>S</kbd> saves as a copy, <kbd>Esc</kbd> cancels.
+- **Crop:** drag the box or its handles (drag outside it to draw a new one), <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> to nudge it (<kbd>Shift</kbd> for 10 px).
+- **Adjust:** <kbd>Tab</kbd> between sliders, <kbd>←</kbd> <kbd>→</kbd> to change one (<kbd>Shift</kbd> for 10), double-click a slider to reset it.
 
 On Windows, use <kbd>Ctrl</kbd> instead of <kbd>⌘</kbd>.
 
@@ -102,7 +106,7 @@ The first run compiles all Rust dependencies, which takes a few minutes. After t
 cd src-tauri && cargo test
 ```
 
-The Rust tests cover cropping, EXIF rotation, keeping metadata, file naming, and the copy / replace save paths.
+The Rust tests cover cropping, colour adjustments, EXIF rotation, keeping metadata, file naming, and the copy / replace save paths.
 
 ### Build
 
@@ -134,7 +138,7 @@ invoke("open_path")      ── IPC ──▶  library.rs   scan folder, grant a
 <img src="thumb://…">    ───────▶  thumbs.rs    decode → resize → disk cache
 invoke("image_info")     ── IPC ──▶  info.rs      dimensions + EXIF
 invoke("trash_image")    ── IPC ──▶  library.rs   move to OS Trash
-invoke("apply_edits")    ── IPC ──▶  edit/        load → crop → save copy / replace
+invoke("apply_edits")    ── IPC ──▶  edit/        load → crop → adjust → save copy / replace
 ```
 
 - **Images never go through IPC.** Full-size images load through Tauri's asset protocol, and thumbnails through a custom `thumb://` protocol, so the webview streams and decodes them natively.
@@ -142,6 +146,7 @@ invoke("apply_edits")    ── IPC ──▶  edit/        load → crop → sa
 - **Thumbnails** are decoded with the `image` crate, rotated according to EXIF orientation, resized to 560 px, and cached under the app's cache directory, keyed by path, size and modified time. A semaphore limits how many are decoded at once.
 - **Undo for Trash** works by waiting: the file disappears from the list immediately, and is only moved to the Trash after the 5-second Undo window closes.
 - **Editing** happens in Rust. The frontend only describes the edit as a list of operations, e.g. `[{ "type": "crop", "x": 120, "y": 80, "width": 1600, "height": 900 }]`, in the image's displayed pixel coordinates. Rust loads the original with its EXIF rotation applied, runs the operations, and re-encodes in the same format (JPEG at quality 92), keeping the colour profile and EXIF. The orientation flag is reset, because the pixels are already rotated. It always writes to a temporary file first. *Save as copy* then renames it to `name (edited).jpg`; *Replace* moves the original to the Trash and renames the temporary file into its place. Animated GIFs can't be edited, since saving would drop their frames.
+- **Colour adjustments** are each a small 3×4 *colour matrix* (scale and mix the R, G, B values, plus an offset). The matrices for temperature, brightness, contrast and saturation are multiplied into one, so Rust processes the image in a single pass (`edit/color.rs`, `edit/adjust.rs`). The frontend builds the same matrix (`src/edit/colorMatrix.ts`, `tools/adjust/adjustments.ts`) and draws the image through an SVG `<feColorMatrix>` filter, so the preview is instant and matches the saved pixels. A Rust test pins the numbers both sides must agree on.
 - **Cache busting:** after a replace, the path is unchanged, so image URLs carry `?v=<modified>-<size>` to make the webview load the new pixels.
 
 ### Adding an edit tool
@@ -150,9 +155,11 @@ Edits are built as a pipeline, so a new tool (rotate, resize, brightness…) doe
 
 1. **Rust:** add `src-tauri/src/edit/<tool>.rs` with a struct for its parameters and `impl Operation for <Tool>`, then add a variant to the `EditOp` enum in `edit/mod.rs` and its arm in `EditOp::operation`.
 2. **TypeScript:** add the operation's type to `EditOp` in `src/edit/types.ts`.
-3. **UI:** create `src/edit/tools/<tool>/` exporting `defineTool({ id, label, shortcut, icon, init, isNoop, toOps, Controls?, Overlay? })`, and add it to `src/edit/tools/index.ts`.
+3. **UI:** create `src/edit/tools/<tool>/` exporting `defineTool({ id, label, shortcut, icon, init, isNoop, toOps, Controls?, Overlay?, Panel?, colorMatrix? })`, and add it to `src/edit/tools/index.ts`.
 
-The editor then shows the tool's tab, controls and overlay, and includes its operations when saving. Tools run in registry order, so put geometry tools (crop, rotate) before tools that change pixel values.
+The editor then shows the tool's tab, toolbar controls, overlay and side panel, and includes its operations when saving. Tools run in registry order, so put geometry tools (crop, rotate) before tools that change pixel values.
+
+A tool that changes colours can return a `colorMatrix` for an instant preview, applied whichever tool is active. To add another slider to Adjust (e.g. tint), add an entry to `ADJUSTMENTS` in `tools/adjust/adjustments.ts`, and a field, a matrix function and a line in `Adjust::matrix` in `edit/adjust.rs`.
 
 ### Project layout
 
@@ -164,7 +171,10 @@ src/                     React frontend
 │  ├─ EditMode.tsx       editor shell: layout, tool tabs, save / replace
 │  ├─ tool.ts            the EditTool interface every tool implements
 │  ├─ types.ts           operation types shared with Rust
-│  └─ tools/crop/        crop tool: state, box overlay, aspect controls, geometry
+│  ├─ colorMatrix.ts     colour matrices for the live preview (mirrors color.rs)
+│  └─ tools/
+│     ├─ crop/           crop tool: state, box overlay, aspect controls, geometry
+│     └─ adjust/         adjust tool: slider list + formulas, side panel
 └─ lib/                  typed command wrappers (api.ts), preferences, hooks
 src-tauri/
 ├─ src/
@@ -172,7 +182,7 @@ src-tauri/
 │  ├─ library.rs         open_path, trash_image, folder scanning
 │  ├─ thumbs.rs          thumb:// protocol and thumbnail cache
 │  ├─ imaging.rs         shared loader: EXIF rotation, colour profile, EXIF
-│  ├─ edit/              apply_edits: EditOp pipeline (mod.rs), crop.rs, output.rs (safe saving)
+│  ├─ edit/              apply_edits: EditOp pipeline (mod.rs), crop.rs, adjust.rs + color.rs, output.rs (safe saving)
 │  ├─ info.rs            image_info (dimensions, EXIF)
 │  ├─ state.rs           allowed folders + thumbnail semaphore
 │  └─ error.rs           AppError, serialized to the frontend
@@ -200,7 +210,8 @@ The workflow needs these repository secrets for macOS signing: `APPLE_CERTIFICAT
 - [ ] Watch the open folder and update the grid live (`notify` crate)
 - [ ] Remember folder access across restarts, so recents show cover photos
 - [ ] Code-sign the Windows installer
-- [ ] More edit tools: rotate / flip, resize, brightness and contrast
+- [x] Brightness, contrast, saturation and temperature
+- [ ] More edit tools: rotate / flip, resize
 - [ ] HEIC and RAW support
 
 ## License
