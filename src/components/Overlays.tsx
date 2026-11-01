@@ -31,6 +31,7 @@ const SHORTCUTS: [string, string, string][] = [
   ["+ / −", "Thumbnail size", "Zoom in / out"],
   ["0 / 1", "—", "Fit / 100%"],
   ["C", "Crop", "Crop"],
+  ["A", "Adjust colours", "Adjust colours"],
   ["R", "—", "Rotate (view only)"],
   ["I", "—", "Toggle info"],
   ["F", "—", "Full screen"],
@@ -42,8 +43,11 @@ const SHORTCUTS: [string, string, string][] = [
 ];
 
 const EDITOR_SHORTCUTS: [string, string][] = [
+  ["C / A", "Switch to Crop / Adjust"],
   ["Drag", "Move or resize the crop box; drag outside it to draw a new one"],
-  ["← → ↑ ↓", "Nudge the crop box (Shift: 10 px)"],
+  ["← → ↑ ↓", "Crop: nudge the box (Shift: 10 px). Adjust: change the focused slider (Shift: 10)"],
+  ["Tab", "Adjust: move to the next slider"],
+  ["Double-click", "Adjust: reset a slider to 0"],
   [`${modKey}S`, "Save as copy"],
   ["Esc", "Cancel editing"],
 ];

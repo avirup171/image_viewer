@@ -6,6 +6,20 @@ All notable changes to Image Viewer are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-01
+
+### Added
+- **Adjust colours.** Press <kbd>A</kbd> in the grid or viewer, click the new adjust button, or switch tabs inside the editor.
+  - Temperature, brightness, contrast and saturation sliders (-100 to +100) in a side panel.
+  - Live preview that matches the saved file, also shown while cropping, so a crop and an adjustment are saved together.
+  - <kbd>Tab</kbd> between sliders, arrow keys to change one (<kbd>Shift</kbd>: 10), double-click to reset one, or *Reset all*.
+- Editor shortcuts for switching tools (<kbd>C</kbd> / <kbd>A</kbd>) in the shortcuts sheet.
+
+### Developer
+- Colour-matrix pipeline in Rust (`edit/color.rs`) and TypeScript (`src/edit/colorMatrix.ts`), with one `Adjust` operation (`edit/adjust.rs`) mirrored by `tools/adjust/adjustments.ts`. A test pins the matrix both sides must produce.
+- Tools can now provide a side `Panel` and a `colorMatrix` for live preview; `EditMode` can open on a given tool.
+- 16-bit PNGs keep their bit depth when adjusted; greyscale images become RGB.
+
 ## [0.1.1] - 2026-10-26
 
 ### Added
@@ -47,6 +61,7 @@ First release.
 - Remembers window size, thumbnail size, sort order and recent folders.
 - Installers for macOS (Apple Silicon, `.dmg`) and Windows (`.msi` and `-setup.exe`), built by GitHub Actions.
 
-[Unreleased]: https://github.com/avirup171/image_viewer/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/avirup171/image_viewer/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/avirup171/image_viewer/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/avirup171/image_viewer/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/avirup171/image_viewer/releases/tag/v0.1.0

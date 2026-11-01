@@ -103,6 +103,14 @@ export const CropIcon = (p: P) => (
     <path d="M18 22V8a2 2 0 0 0-2-2H2" />
   </Icon>
 );
+/** Two slider tracks with knobs: the Adjust tool. */
+export const AdjustIcon = (p: P) => (
+  <Icon {...p}>
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="9" cy="17" r="2" />
+  </Icon>
+);
 export const SwapIcon = (p: P) => (
   <Icon {...p}>
     <rect x="3" y="7" width="12" height="9" rx="1.5" />

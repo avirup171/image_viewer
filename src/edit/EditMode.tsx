@@ -1,14 +1,18 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { applyEdits, fullSrc, modKey, type ImageEntry } from "../lib/api";
+import { compose, IDENTITY, isIdentity, toSvgValues, type ColorMatrix } from "./colorMatrix";
 import type { ToolProps } from "./tool";
 import { tools } from "./tools";
 import type { EditResult, SaveMode, Size } from "./types";
 
 const PAD = 40; // space around the image inside the stage
 const MAX_SCALE = 4; // tiny images are enlarged, but not absurdly
+const PREVIEW_FILTER = "edit-preview"; // id of the SVG filter below; one editor at a time
 
 type Props = {
   entry: ImageEntry;
+  /** Tool to start with, e.g. "adjust" when opened with A. Defaults to the first. */
+  initialTool?: string;
   onCancel: () => void;
   onSaved: (result: EditResult) => void;
 };
@@ -18,12 +22,14 @@ type Props = {
  * active tool's controls and overlay, and on save sends every tool's
  * operations to Rust in registry order.
  */
-export function EditMode({ entry, onCancel, onSaved }: Props) {
+export function EditMode({ entry, initialTool, onCancel, onSaved }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState({ w: 0, h: 0 });
   const [image, setImage] = useState<Size | null>(null);
   const [failed, setFailed] = useState(false);
-  const [activeId, setActiveId] = useState(tools[0].id);
+  const [activeId, setActiveId] = useState(() =>
+    tools.some((t) => t.id === initialTool) ? initialTool! : tools[0].id,
+  );
   const [states, setStates] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState<SaveMode | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +64,14 @@ export function EditMode({ entry, onCancel, onSaved }: Props) {
   const changedTools = ready ? tools.filter((t) => !t.isNoop(states[t.id], image)) : [];
   const changed = changedTools.length > 0;
   const active = tools.find((t) => t.id === activeId)!;
+
+  // Live colour preview: every tool's matrix, composed in registry order (the
+  // same order Rust applies the operations). The webview draws it with an SVG
+  // filter at screen size, so sliders stay fast; the file is only touched on save.
+  const preview = ready
+    ? tools.reduce<ColorMatrix>((m, t) => (t.colorMatrix ? compose(t.colorMatrix(states[t.id]), m) : m), IDENTITY)
+    : IDENTITY;
+  const previewOn = !isIdentity(preview);
 
   async function save(mode: SaveMode) {
     if (!ready || !changed || busy) return;
@@ -118,7 +132,7 @@ export function EditMode({ entry, onCancel, onSaved }: Props) {
         top: (stage.h - image.height * scale) / 2,
       }
     : null;
-  const { Controls, Overlay } = active;
+  const { Controls, Overlay, Panel } = active;
 
   return (
     <div className="editor">
@@ -144,23 +158,35 @@ export function EditMode({ entry, onCancel, onSaved }: Props) {
         {ready && Controls && <Controls {...propsFor(active.id)} />}
       </div>
 
-      <div ref={stageRef} className="editor-stage">
-        <div className="editor-canvas" style={canvas ?? { visibility: "hidden" }}>
-          <img
-            src={fullSrc(entry)}
-            alt={entry.name}
-            draggable={false}
-            onLoad={(e) => {
-              const size = { width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight };
-              setImage(size);
-              setStates(initAll(size));
-            }}
-            onError={() => setFailed(true)}
-          />
-          {ready && Overlay && <Overlay {...propsFor(active.id)} />}
+      {/* The preview filter. color-interpolation-filters="sRGB" makes it work on
+          the stored values, like Rust does (the SVG default is linear light). */}
+      <svg className="svg-defs" width="0" height="0" aria-hidden="true">
+        <filter id={PREVIEW_FILTER} colorInterpolationFilters="sRGB">
+          <feColorMatrix type="matrix" values={toSvgValues(preview)} />
+        </filter>
+      </svg>
+
+      <div className="editor-body">
+        <div ref={stageRef} className="editor-stage">
+          <div className="editor-canvas" style={canvas ?? { visibility: "hidden" }}>
+            <img
+              src={fullSrc(entry)}
+              alt={entry.name}
+              draggable={false}
+              style={previewOn ? { filter: `url(#${PREVIEW_FILTER})` } : undefined}
+              onLoad={(e) => {
+                const size = { width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight };
+                setImage(size);
+                setStates(initAll(size));
+              }}
+              onError={() => setFailed(true)}
+            />
+            {ready && Overlay && <Overlay {...propsFor(active.id)} />}
+          </div>
+          {!image && !failed && <span className="spinner big" aria-label="Loading" />}
+          {failed && <p className="muted stage-msg">Can’t load this image.</p>}
         </div>
-        {!image && !failed && <span className="spinner big" aria-label="Loading" />}
-        {failed && <p className="muted stage-msg">Can’t load this image.</p>}
+        {ready && Panel && <Panel {...propsFor(active.id)} />}
       </div>
 
       <div className="editor-footer">

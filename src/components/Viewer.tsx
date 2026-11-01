@@ -3,6 +3,7 @@ import { fullSrc, thumbSrc, versionOf, type ImageEntry } from "../lib/api";
 import { useImageInfo } from "../lib/useImageInfo";
 import { InfoPanel } from "./InfoPanel";
 import {
+  AdjustIcon,
   ChevronLeftIcon,
   CropIcon,
   ChevronRightIcon,
@@ -33,8 +34,8 @@ type Props = {
   onTrash: (entry: ImageEntry) => void;
   onReveal: (path: string) => void;
   onCopyPath: (path: string) => void;
-  /** Open the editor for the current image; undefined when it can't be edited (e.g. GIF). */
-  onEdit?: () => void;
+  /** Open the editor on a tool ("crop", "adjust"); undefined when the image can't be edited (e.g. GIF). */
+  onEdit?: (tool: string) => void;
   keysDisabled: boolean;
 };
 
@@ -267,12 +268,21 @@ export function Viewer(p: Props) {
           <span className="divider" aria-hidden="true" />
           <button
             className="icon-btn"
-            onClick={p.onEdit}
+            onClick={() => p.onEdit?.("crop")}
             disabled={!p.onEdit}
             aria-label="Crop"
             title={p.onEdit ? "Crop (C)" : "This format can’t be edited"}
           >
             <CropIcon />
+          </button>
+          <button
+            className="icon-btn"
+            onClick={() => p.onEdit?.("adjust")}
+            disabled={!p.onEdit}
+            aria-label="Adjust colours"
+            title={p.onEdit ? "Adjust brightness, contrast, colour (A)" : "This format can’t be edited"}
+          >
+            <AdjustIcon />
           </button>
           <button className="icon-btn" onClick={() => rotate(90)} aria-label="Rotate 90°" title="Rotate view (R)">
             <RotateIcon />

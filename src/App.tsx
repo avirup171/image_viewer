@@ -30,6 +30,8 @@ export default function App() {
   const [folder, setFolder] = useState<Folder | null>(null);
   const [images, setImages] = useState<ImageEntry[]>([]);
   const [view, setView] = useState<"grid" | "viewer" | "edit">("grid");
+  /** Which editor tool to open on ("crop" with C, "adjust" with A). */
+  const [editTool, setEditTool] = useState("crop");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<SortKey>(() => load("sort", "name"));
@@ -181,7 +183,7 @@ export default function App() {
   }, []);
 
   // ---- editing ---------------------------------------------------------------
-  function startEdit(entry: ImageEntry | undefined) {
+  function startEdit(entry: ImageEntry | undefined, tool: string) {
     if (!entry) return;
     if (!canEdit(entry)) {
       showToast("Only JPEG, PNG, WebP and BMP images can be edited.");
@@ -189,6 +191,7 @@ export default function App() {
     }
     commitPending();
     setSelectedPath(entry.path);
+    setEditTool(tool);
     setView("edit");
   }
 
@@ -364,7 +367,12 @@ export default function App() {
         case "c":
         case "C":
           e.preventDefault();
-          startEdit(visible[i]);
+          startEdit(visible[i], "crop");
+          return;
+        case "a":
+        case "A":
+          e.preventDefault();
+          startEdit(visible[i], "adjust");
           return;
         default:
           return;
@@ -404,7 +412,11 @@ export default function App() {
         break;
       case "c":
       case "C":
-        startEdit(visible[i]);
+        startEdit(visible[i], "crop");
+        break;
+      case "a":
+      case "A":
+        startEdit(visible[i], "adjust");
         break;
       case "Backspace":
       case "Delete":
@@ -440,6 +452,7 @@ export default function App() {
         // a fresh editor per file (and per version, after a replace)
         key={`${entry.path}|${entry.modified}`}
         entry={entry}
+        initialTool={editTool}
         onCancel={() => setView("viewer")}
         onSaved={handleSaved}
       />
@@ -459,7 +472,7 @@ export default function App() {
         onTrash={requestTrash}
         onReveal={reveal}
         onCopyPath={copyPath}
-        onEdit={canEdit(visible[selectedIndex]) ? () => startEdit(visible[selectedIndex]) : undefined}
+        onEdit={canEdit(visible[selectedIndex]) ? (tool) => startEdit(visible[selectedIndex], tool) : undefined}
         keysDisabled={showShortcuts}
       />
     );
