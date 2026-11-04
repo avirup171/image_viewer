@@ -23,5 +23,8 @@ export type EditResult = { entry: ImageEntry; replaced: boolean };
 
 export type Size = { width: number; height: number };
 
-/** Formats the backend can edit and save without losing anything (no animated GIFs). */
-export const canEdit = (entry: ImageEntry) => /\.(jpe?g|png|webp|bmp)$/i.test(entry.name);
+/**
+ * Formats the backend can edit (no animated GIFs). HEIC (macOS) is edited too,
+ * but always saved as a JPEG copy: see `isHeic` in lib/api.ts.
+ */
+export const canEdit = (entry: ImageEntry) => /\.(jpe?g|png|webp|bmp|heic|heif)$/i.test(entry.name);

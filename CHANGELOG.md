@@ -6,6 +6,19 @@ All notable changes to Image Viewer are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **HEIC / HEIF photos on macOS** (iPhone photos): thumbnails, full-size viewing, zoom, camera details, crop and adjust.
+  - Decoded in Rust by Apple's ImageIO framework, so rotation and wide-gamut colour (Display P3) are kept.
+  - Edits are saved as a JPEG copy (`name (edited).jpg`), with camera data and colour profile kept. *Replace original* isn't available for HEIC.
+  - HEIC files aren't listed on Windows.
+- **Remove a folder from the recent list**, in the sidebar and on the welcome screen: click the × that appears on hover, or focus the folder and press <kbd>⌫</kbd>. Only the list entry goes; the folder isn't touched. An Undo toast puts it back.
+
+### Developer
+- `src-tauri/src/heic/`: `mod.rs` (format check, EXIF via kamadak-exif, any platform) and `imageio.rs` (macOS decoder through `objc2-image-io` / `objc2-core-graphics`).
+- New `preview://` protocol (thumbs.rs) serves a full-size JPEG for formats the webview can't show, with the same folder checks and disk cache as `thumb://`.
+- `imaging::open_scaled` decodes HEIC thumbnails directly at thumbnail size.
+- HEIC test fixture in `src-tauri/test-data/`; decoder tests run on macOS only.
+
 ## [0.1.2] - 2026-11-01
 
 ### Added

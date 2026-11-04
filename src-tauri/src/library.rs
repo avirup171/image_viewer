@@ -14,6 +14,11 @@ use crate::{
     state::AppState,
 };
 
+/// HEIC / HEIF (iPhone photos) only on macOS, where Apple's decoder is built
+/// in (see `heic/`). Keep `IMAGE_EXTS` in `src/lib/api.ts` in step.
+#[cfg(target_os = "macos")]
+pub const EXTS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif"];
+#[cfg(not(target_os = "macos"))]
 pub const EXTS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp", "bmp"];
 
 pub fn has_image_ext(path: &Path) -> bool {

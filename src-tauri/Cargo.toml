@@ -37,6 +37,13 @@ percent-encoding = "2"
 # Semaphore to cap how many thumbnails are generated at once
 tokio = { version = "1", features = ["sync"] }
 
+# HEIC / HEIF decoding through Apple's ImageIO framework, macOS only (src/heic/).
+# Tauri already uses these crates on macOS; versions match its Cargo.lock entries.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-foundation = "0.3.2"
+objc2-core-graphics = "0.3.2"
+objc2-image-io = "0.3.2"
+
 # Image decoding is very slow in unoptimized debug builds. Optimize just the
 # dependencies so `tauri dev` thumbnails are usable, while your own crate still
 # compiles quickly.

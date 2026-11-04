@@ -28,7 +28,7 @@ use tauri::State;
 
 use crate::{
     error::{AppError, AppResult},
-    imaging,
+    heic, imaging,
     library::{self, ImageEntry},
     state::AppState,
 };
@@ -65,6 +65,9 @@ pub fn apply_ops(image: DynamicImage, ops: &[EditOp]) -> AppResult<DynamicImage>
     ops.iter().try_fold(image, |img, op| op.operation().apply(img))
 }
 
+pub(crate) const HEIC_REPLACE: &str =
+    "HEIC photos are saved as a JPEG copy. Replacing the original isn't supported";
+
 /// Formats we can decode *and* write back without losing anything important.
 /// GIF is excluded: re-encoding would drop every frame after the first.
 pub fn is_editable(format: ImageFormat) -> bool {
@@ -82,6 +85,11 @@ pub struct EditResult {
 pub fn run_edit(path: PathBuf, ops: &[EditOp], mode: SaveMode) -> AppResult<EditResult> {
     if ops.is_empty() {
         return Err(AppError::InvalidEdit("There are no changes to save".into()));
+    }
+    // We can read HEIC (macOS) but not write it, so its edits are always a
+    // JPEG copy. Checked before the (slow) decode.
+    if heic::is_heic(&path) && matches!(mode, SaveMode::Replace) {
+        return Err(AppError::InvalidEdit(HEIC_REPLACE.into()));
     }
     let loaded = imaging::open_oriented(&path)?;
     if !is_editable(loaded.format) {
@@ -191,6 +199,39 @@ mod tests {
         let p = out.get_pixel(50, 60).0;
         assert!(p.iter().all(|&c| c.abs_diff(p[1]) <= 3), "{p:?}");
         assert_eq!(read_exif(std::path::Path::new(&result.entry.path)), (Some(1), Some("TestCam X1".into())));
+    }
+
+    #[test]
+    fn heic_replace_is_refused_before_decoding() {
+        // Works on every platform: the check happens before the macOS-only decoder.
+        let src = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/rotated.heic");
+        let ops = [EditOp::Crop(Crop { x: 0, y: 0, width: 10, height: 10 })];
+        assert!(matches!(run_edit(src, &ops, SaveMode::Replace), Err(AppError::InvalidEdit(m)) if m == HEIC_REPLACE));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn heic_edit_saves_a_jpeg_copy_with_metadata() {
+        let dir = temp_dir("edit-heic");
+        let src = dir.join("IMG_7.HEIC");
+        std::fs::copy(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/rotated.heic"), &src).unwrap();
+        let before = std::fs::read(&src).unwrap();
+
+        // Displayed 40×60 (red on top): keep the top 40×30, i.e. the red half.
+        let ops = [
+            EditOp::Crop(Crop { x: 0, y: 0, width: 40, height: 30 }),
+            EditOp::Adjust(Adjust { brightness: 10, ..Default::default() }),
+        ];
+        let result = run_edit(src.clone(), &ops, SaveMode::NewFile).unwrap();
+        let dest = dir.join("IMG_7 (edited).jpg");
+        assert_eq!(result.entry.path, dest.to_string_lossy());
+        assert_eq!(std::fs::read(&src).unwrap(), before, "original untouched");
+
+        let out = image::open(&dest).unwrap().to_rgb8();
+        assert_eq!(out.dimensions(), (40, 30));
+        let p = out.get_pixel(20, 15).0;
+        assert!(p[0] > 150 && p[2] < 120, "red half kept: {p:?}");
+        assert_eq!(read_exif(&dest), (Some(1), Some("TestCam HEIC".into())));
     }
 
     #[test]

@@ -111,6 +111,11 @@ export const AdjustIcon = (p: P) => (
     <circle cx="9" cy="17" r="2" />
   </Icon>
 );
+export const CloseIcon = (p: P) => (
+  <Icon {...p}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </Icon>
+);
 export const SwapIcon = (p: P) => (
   <Icon {...p}>
     <rect x="3" y="7" width="12" height="9" rx="1.5" />
