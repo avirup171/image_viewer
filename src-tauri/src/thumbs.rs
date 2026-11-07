@@ -87,7 +87,7 @@ fn serve<R: Runtime>(
                     .path()
                     .app_cache_dir()
                     .map(|d| d.join("thumbs"))
-                    .unwrap_or_else(|_| std::env::temp_dir().join("image_viewer_thumbs"));
+                    .unwrap_or_else(|_| std::env::temp_dir().join("spektro_photo_thumbs"));
 
                 let result =
                     tauri::async_runtime::spawn_blocking(move || make(&src, &cache_dir, kind))

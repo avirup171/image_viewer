@@ -4,8 +4,9 @@ Context for Claude when working on this repository.
 
 ## Project
 
-**Image Viewer**: a small, fast desktop image viewer for macOS (Apple Silicon) and Windows.
-Personal learning / side project by Avirup Basu (GitHub: `avirup171/image_viewer`, MIT).
+**Spektro Photo** (called Image Viewer until 0.1.2): a small, fast desktop image viewer for macOS
+(Apple Silicon) and Windows. Personal learning / side project by Avirup Basu (GitHub:
+`avirup171/spektro-photo`, MIT; the old `image_viewer` URL redirects).
 The owner is an experienced Rust developer who is newer to Tauri and frontend work:
 explain *why* when changing things, and keep the app simple. It's a viewer with basic
 editing, not a photo editor.
@@ -149,7 +150,7 @@ Known limits: ops run in registry order (geometry tools first).
 
 Version lives in **three files**; keep them equal: `src-tauri/tauri.conf.json` (authoritative:
 installer names + workflow tag check), `package.json`, `src-tauri/Cargo.toml`. The lockfiles
-copy it too: the `image_viewer` entry in `src-tauri/Cargo.lock` and the top-level `version`
+copy it too: the `spektro_photo` entry in `src-tauri/Cargo.lock` and the top-level `version`
 (two places) in `package-lock.json`; bump those in the same commit.
 
 Flow (this is how 0.1.2 went out):
@@ -163,7 +164,7 @@ Flow (this is how 0.1.2 went out):
    ```bash
    git checkout main
    git pull origin main
-   git tag -a v0.1.3 -m "Image Viewer 0.1.3"
+   git tag -a v0.1.3 -m "Spektro Photo 0.1.3"
    git show v0.1.3:src-tauri/tauri.conf.json | grep '"version"'
    git push origin v0.1.3
    ```
@@ -192,12 +193,21 @@ Flow (this is how 0.1.2 went out):
   Local signing reads the same variables from `~/.config/image-viewer/signing.env` (outside the repo).
   First-ever notarization for the team took hours; later ones take minutes.
 - `tauri.conf.json` still has `bundle.macOS.signingIdentity: "-"` (ad-hoc). The CI secret should
-  override it. Verify a release with `spctl -a -vvv "/Volumes/Image Viewer/Image Viewer.app"`
+  override it. Verify a release with `spctl -a -vvv "/Volumes/Spektro Photo/Spektro Photo.app"`
   (expect `source=Notarized Developer ID`). If not, remove that block.
 
 ## Gotchas learned the hard way
 
 - The bundle identifier must not contain `_` (it's `com.avirup171.image-viewer`). Changing it resets app data.
+- **Naming (renamed in 0.1.3):** the visible name is `productName` "Spektro Photo" (also window title,
+  `index.html`, release title). The identifier deliberately keeps the old `image-viewer`: it's what macOS and
+  Windows use to find settings, recents and the thumbnail cache, and users never see it. Crate is
+  `spektro_photo` (lib `spektro_photo_lib`), npm package `spektro-photo`.
+- The MSI `upgradeCode` is pinned in `tauri.conf.json` (`bundle.windows.wix`) to the value derived from the
+  old name. Never change it, or MSI updates install side by side. The NSIS `-setup.exe` keys its install
+  folder and registry entry on `productName`, so the 0.1.3 rename installs next to the old app (users
+  uninstall "Image Viewer" once).
+- `~/.config/image-viewer/signing.env` (local signing secrets, outside the repo) kept its old folder name.
 - `cargo test` replace-mode tests really move a temp file to the system Trash; that's expected.
 - After a version bump, `Cargo.lock` changes on the next build; commit it. `package-lock.json` was
   left at 0.1.0 until 0.1.2; keep it in step too.

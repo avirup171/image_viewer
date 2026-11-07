@@ -1,10 +1,15 @@
 # Changelog
 
-All notable changes to Image Viewer are listed here. The format follows
+All notable changes to Spektro Photo (formerly Image Viewer) are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+### Changed
+- **Image Viewer is now called Spektro Photo.** Your settings, recent folders and thumbnail cache carry over.
+  - **Mac:** after installing, delete the old *Image Viewer* app from Applications.
+  - **Windows (`-setup.exe`):** Spektro Photo installs next to the old app; uninstall *Image Viewer* from Settings → Apps. The `.msi` upgrades in place.
 
 ### Added
 - **HEIC / HEIF photos on macOS** (iPhone photos): thumbnails, full-size viewing, zoom, camera details, crop and adjust.
@@ -74,7 +79,7 @@ First release.
 - Remembers window size, thumbnail size, sort order and recent folders.
 - Installers for macOS (Apple Silicon, `.dmg`) and Windows (`.msi` and `-setup.exe`), built by GitHub Actions.
 
-[Unreleased]: https://github.com/avirup171/image_viewer/compare/v0.1.2...HEAD
-[0.1.2]: https://github.com/avirup171/image_viewer/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/avirup171/image_viewer/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/avirup171/image_viewer/releases/tag/v0.1.0
+[Unreleased]: https://github.com/avirup171/spektro-photo/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/avirup171/spektro-photo/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/avirup171/spektro-photo/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/avirup171/spektro-photo/releases/tag/v0.1.0

@@ -156,7 +156,7 @@ pub mod test_support {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("image-viewer-test-{name}-{nanos}"));
+        let dir = std::env::temp_dir().join(format!("spektro-photo-test-{name}-{nanos}"));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

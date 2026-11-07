@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="app-icon.png" width="128" alt="Image Viewer icon">
+  <img src="app-icon.png" width="128" alt="Spektro Photo icon">
 </p>
 
-<h1 align="center">Image Viewer</h1>
+<h1 align="center">Spektro Photo</h1>
 
 <p align="center">
   A fast, simple desktop image viewer built with <a href="https://tauri.app">Tauri 2</a>, Rust and React.
@@ -54,7 +54,7 @@ Get the installer from the [Releases page](../../releases/latest).
 
 | Platform | File | Notes |
 |---|---|---|
-| macOS (Apple Silicon, M1 or later) | `…_aarch64.dmg` | Signed and notarized. Open the `.dmg` and drag Image Viewer to Applications. |
+| macOS (Apple Silicon, M1 or later) | `…_aarch64.dmg` | Signed and notarized. Open the `.dmg` and drag Spektro Photo to Applications. |
 | Windows 10 / 11 | `…_x64-setup.exe` or `.msi` | Not code-signed yet. If SmartScreen appears, click **More info → Run anyway**. |
 
 Intel Macs aren't supported at the moment.
@@ -129,7 +129,7 @@ export APPLE_PASSWORD="app-specific-password"
 export APPLE_TEAM_ID="TEAMID"
 ```
 
-Then check the result with `spctl -a -vvv "src-tauri/target/release/bundle/macos/Image Viewer.app"`. It should report `source=Notarized Developer ID`.
+Then check the result with `spctl -a -vvv "src-tauri/target/release/bundle/macos/Spektro Photo.app"`. It should report `source=Notarized Developer ID`.
 
 ## How it works
 
@@ -207,7 +207,7 @@ Releases are built by GitHub Actions (`.github/workflows/release.yml`) for macOS
    ```bash
    git checkout main
    git pull origin main
-   git tag -a v0.2.0 -m "Image Viewer 0.2.0"
+   git tag -a v0.2.0 -m "Spektro Photo 0.2.0"
    git push origin v0.2.0
    ```
 4. The workflow builds, signs and notarizes the macOS app, builds the Windows installers, and uploads everything to a **draft** release. Review it, then publish.

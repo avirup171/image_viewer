@@ -1724,28 +1724,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "image_viewer"
-version = "0.1.2"
-dependencies = [
- "image",
- "kamadak-exif",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "objc2-image-io",
- "percent-encoding",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-window-state",
- "thiserror 2.0.21",
- "tokio",
- "trash",
-]
-
-[[package]]
 name = "indexmap"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3353,6 +3331,28 @@ dependencies = [
  "gobject-sys",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "spektro_photo"
+version = "0.1.2"
+dependencies = [
+ "image",
+ "kamadak-exif",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-image-io",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-window-state",
+ "thiserror 2.0.21",
+ "tokio",
+ "trash",
 ]
 
 [[package]]

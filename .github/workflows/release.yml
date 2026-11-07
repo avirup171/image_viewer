@@ -102,7 +102,7 @@ jobs:
         with:
           # __VERSION__ is replaced with the version from tauri.conf.json
           tagName: v__VERSION__
-          releaseName: Image Viewer v__VERSION__
+          releaseName: Spektro Photo v__VERSION__
           releaseBody: |
             Downloads:
             - **Mac (Apple Silicon, M1 or later):** the `aarch64.dmg`
