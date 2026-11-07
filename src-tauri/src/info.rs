@@ -9,6 +9,7 @@ use tauri::State;
 
 use crate::{
     error::{AppError, AppResult},
+    heic,
     state::AppState,
 };
 
@@ -41,9 +42,14 @@ const CAMERA_TAGS: &[(Tag, &str)] = &[
 
 fn read_info(path: PathBuf) -> AppResult<ImageInfo> {
     // Reading dimensions only parses the header, not the pixels: fast.
-    let reader = ImageReader::open(&path)?.with_guessed_format()?;
-    let format = reader.format().map(|f| format!("{f:?}").to_uppercase());
-    let dims = reader.into_dimensions().ok();
+    // HEIC goes through ImageIO (macOS), which already gives the rotated size.
+    let is_heic = heic::is_heic(&path);
+    let (format, dims) = if is_heic {
+        (Some("HEIC".to_string()), heic::dimensions(&path).ok())
+    } else {
+        let reader = ImageReader::open(&path)?.with_guessed_format()?;
+        (reader.format().map(|f| format!("{f:?}").to_uppercase()), reader.into_dimensions().ok())
+    };
 
     // No EXIF block is normal (PNG, screenshots), so failures become `None`.
     let exif = File::open(&path)
@@ -72,7 +78,7 @@ fn read_info(path: PathBuf) -> AppResult<ImageInfo> {
 
     // EXIF orientations 5–8 are rotated 90°, so width and height swap on screen.
     let (width, height) = match dims {
-        Some((w, h)) if (5..=8).contains(&orientation) => (Some(h), Some(w)),
+        Some((w, h)) if !is_heic && (5..=8).contains(&orientation) => (Some(h), Some(w)),
         Some((w, h)) => (Some(w), Some(h)),
         None => (None, None),
     };

@@ -2,7 +2,8 @@ import { memo, useEffect, useState, type RefObject } from "react";
 import { thumbSrc, formatBytes, modKey, versionOf, type Folder, type ImageEntry } from "../lib/api";
 import type { Recent } from "../lib/storage";
 import { useImageInfo } from "../lib/useImageInfo";
-import { ChevronRightIcon, FolderIcon, PlusIcon, SearchIcon } from "./Icons";
+import { ChevronRightIcon, CloseIcon, FolderIcon, PlusIcon, SearchIcon } from "./Icons";
+import { removeOnDelete } from "./recentKeys";
 
 export type SortKey = "name" | "date" | "size";
 export const THUMB_MIN = 96;
@@ -23,6 +24,8 @@ type Props = {
   onThumbSize: (n: number) => void;
   recents: Recent[];
   onOpenRecent: (dir: string) => void;
+  /** Takes a folder off the recent list (the folder itself isn't touched). */
+  onRemoveRecent: (dir: string) => void;
   onOpenFolder: () => void;
   filterRef: RefObject<HTMLInputElement | null>;
   gridRef: RefObject<HTMLDivElement | null>;
@@ -92,15 +95,26 @@ export function Library(p: Props) {
         <aside className="sidebar">
           <h2 className="eyebrow">Recent folders</h2>
           {p.recents.map((r) => (
-            <button
-              key={r.dir}
-              className={"side-item" + (r.dir === p.folder.dir ? " active" : "")}
-              onClick={() => p.onOpenRecent(r.dir)}
-              title={r.dir}
-            >
-              <FolderIcon size={16} />
-              <span className="ellipsis">{r.name}</span>
-            </button>
+            // Two sibling buttons (a button can't contain another one); the
+            // × shows on hover or keyboard focus.
+            <div key={r.dir} className="side-row" onKeyDown={removeOnDelete(() => p.onRemoveRecent(r.dir))}>
+              <button
+                className={"side-item" + (r.dir === p.folder.dir ? " active" : "")}
+                onClick={() => p.onOpenRecent(r.dir)}
+                title={r.dir}
+              >
+                <FolderIcon size={16} />
+                <span className="ellipsis">{r.name}</span>
+              </button>
+              <button
+                className="remove-x"
+                onClick={() => p.onRemoveRecent(r.dir)}
+                aria-label={`Remove ${r.name} from recent folders`}
+                title="Remove from recent folders (⌫). The folder itself isn’t touched."
+              >
+                <CloseIcon size={14} />
+              </button>
+            </div>
           ))}
           <div className="spacer" />
           <button className="side-item dashed" onClick={p.onOpenFolder}>

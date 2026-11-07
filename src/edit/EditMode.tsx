@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { applyEdits, fullSrc, modKey, type ImageEntry } from "../lib/api";
+import { applyEdits, fullSrc, isHeic, modKey, type ImageEntry } from "../lib/api";
 import { compose, IDENTITY, isIdentity, toSvgValues, type ColorMatrix } from "./colorMatrix";
 import type { ToolProps } from "./tool";
 import { tools } from "./tools";
@@ -63,6 +63,8 @@ export function EditMode({ entry, initialTool, onCancel, onSaved }: Props) {
   const ready = image !== null && tools.every((t) => t.id in states);
   const changedTools = ready ? tools.filter((t) => !t.isNoop(states[t.id], image)) : [];
   const changed = changedTools.length > 0;
+  // HEIC can be read but not written, so edits always become a JPEG copy.
+  const copyOnly = isHeic(entry);
   const active = tools.find((t) => t.id === activeId)!;
 
   // Live colour preview: every tool's matrix, composed in registry order (the
@@ -200,11 +202,17 @@ export function EditMode({ entry, initialTool, onCancel, onSaved }: Props) {
         <button className="btn" onClick={() => image && setStates(initAll(image))} disabled={!changed || !!busy}>
           Reset
         </button>
-        <button className="btn" onClick={() => setConfirmReplace(true)} disabled={!changed || !!busy}>
+        <button
+          className="btn"
+          onClick={() => setConfirmReplace(true)}
+          disabled={!changed || !!busy || copyOnly}
+          title={copyOnly ? "HEIC photos are saved as a JPEG copy" : undefined}
+        >
           Replace original…
         </button>
         <button className="btn primary" onClick={() => save("newFile")} disabled={!changed || !!busy}>
-          {busy === "newFile" ? "Saving…" : "Save as copy"} <kbd className="on-accent">{modKey}S</kbd>
+          {busy === "newFile" ? "Saving…" : copyOnly ? "Save as JPEG copy" : "Save as copy"}{" "}
+          <kbd className="on-accent">{modKey}S</kbd>
         </button>
       </div>
 

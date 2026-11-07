@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="app-icon.png" width="128" alt="Image Viewer icon">
+  <img src="app-icon.png" width="128" alt="Spektro Photo icon">
 </p>
 
-<h1 align="center">Image Viewer</h1>
+<h1 align="center">Spektro Photo</h1>
 
 <p align="center">
   A fast, simple desktop image viewer built with <a href="https://tauri.app">Tauri 2</a>, Rust and React.
@@ -36,7 +36,7 @@ The full list of changes is in the [changelog](CHANGELOG.md).
 
 ## Features
 
-- **Open a folder, an image, or drop either onto the window.** Recent folders are one click away.
+- **Open a folder, an image, or drop either onto the window.** Recent folders are one click away; remove one from the list with its × (the folder itself isn't touched).
 - **Thumbnail grid** with an adjustable tile size, filtering by name, and sorting by name, date or size. Thumbnails are generated in Rust and cached on disk, so large camera folders stay responsive.
 - **Viewer** with zoom toward the cursor, drag to pan, fit / 100%, view-only rotation, a navigator mini-map when zoomed in, and a filmstrip of nearby images.
 - **Info panel** with dimensions, file details and camera EXIF (camera, lens, focal length, aperture, shutter, ISO, date taken).
@@ -46,7 +46,7 @@ The full list of changes is in the [changelog](CHANGELOG.md).
 - **Keyboard-first:** everything has a shortcut (press <kbd>?</kbd> in the app).
 - Remembers window size, thumbnail size, sort order and recent folders.
 
-Supported formats: JPEG, PNG, GIF, WebP, BMP.
+Supported formats: JPEG, PNG, GIF, WebP, BMP, and on macOS HEIC / HEIF (iPhone photos). Edits to a HEIC photo are saved as a JPEG copy.
 
 ## Download
 
@@ -54,7 +54,7 @@ Get the installer from the [Releases page](../../releases/latest).
 
 | Platform | File | Notes |
 |---|---|---|
-| macOS (Apple Silicon, M1 or later) | `…_aarch64.dmg` | Signed and notarized. Open the `.dmg` and drag Image Viewer to Applications. |
+| macOS (Apple Silicon, M1 or later) | `…_aarch64.dmg` | Signed and notarized. Open the `.dmg` and drag Spektro Photo to Applications. |
 | Windows 10 / 11 | `…_x64-setup.exe` or `.msi` | Not code-signed yet. If SmartScreen appears, click **More info → Run anyway**. |
 
 Intel Macs aren't supported at the moment.
@@ -74,6 +74,7 @@ Intel Macs aren't supported at the moment.
 | <kbd>I</kbd> | | Toggle info panel |
 | <kbd>F</kbd> | | Full screen |
 | <kbd>⌫</kbd> | Move to Trash | Move to Trash |
+| <kbd>Tab</kbd>, <kbd>⌫</kbd> | Remove a recent folder from the list | |
 | <kbd>⌘</kbd><kbd>Z</kbd> | Undo trash | Undo trash |
 | <kbd>⌘</kbd><kbd>F</kbd> | Filter by name | |
 | <kbd>⌘</kbd><kbd>O</kbd> | Open folder | Open folder |
@@ -128,7 +129,7 @@ export APPLE_PASSWORD="app-specific-password"
 export APPLE_TEAM_ID="TEAMID"
 ```
 
-Then check the result with `spctl -a -vvv "src-tauri/target/release/bundle/macos/Image Viewer.app"`. It should report `source=Notarized Developer ID`.
+Then check the result with `spctl -a -vvv "src-tauri/target/release/bundle/macos/Spektro Photo.app"`. It should report `source=Notarized Developer ID`.
 
 ## How it works
 
@@ -138,6 +139,7 @@ React (webview)                                Rust (src-tauri)
 invoke("open_path")      ── IPC ──▶  library.rs   scan folder, grant access
 <img src="asset://…">    ───────▶  Tauri asset protocol: full-size image
 <img src="thumb://…">    ───────▶  thumbs.rs    decode → resize → disk cache
+<img src="preview://…">  ───────▶  thumbs.rs    HEIC: decode (heic/) → full-size JPEG → disk cache
 invoke("image_info")     ── IPC ──▶  info.rs      dimensions + EXIF
 invoke("trash_image")    ── IPC ──▶  library.rs   move to OS Trash
 invoke("apply_edits")    ── IPC ──▶  edit/        load → crop → adjust → save copy / replace
@@ -145,6 +147,7 @@ invoke("apply_edits")    ── IPC ──▶  edit/        load → crop → ad
 
 - **Images never go through IPC.** Full-size images load through Tauri's asset protocol, and thumbnails through a custom `thumb://` protocol, so the webview streams and decodes them natively.
 - **Access is granted per folder.** The asset protocol's scope starts empty. Opening a folder adds it at runtime, and `thumb://` and every command check the same list (`AppState`), so the webview can only read folders the user opened.
+- **HEIC (macOS only)** is decoded in Rust with Apple's ImageIO framework (`heic/`, through the `objc2` bindings), the decoder Preview and Photos use, so nothing extra is bundled. The webview can't be relied on to show HEIC, so the viewer and editor get a full-size JPEG with the colour profile kept, from a `preview://` protocol that works like `thumb://`. Thumbnails, the info panel and editing use the same decoder; since HEIC can't be written back, edits are saved as `name (edited).jpg` and *Replace original* is off for HEIC. On Windows, HEIC files aren't listed.
 - **Thumbnails** are decoded with the `image` crate, rotated according to EXIF orientation, resized to 560 px, and cached under the app's cache directory, keyed by path, size and modified time. A semaphore limits how many are decoded at once.
 - **Undo for Trash** works by waiting: the file disappears from the list immediately, and is only moved to the Trash after the 5-second Undo window closes.
 - **Editing** happens in Rust. The frontend only describes the edit as a list of operations, e.g. `[{ "type": "crop", "x": 120, "y": 80, "width": 1600, "height": 900 }]`, in the image's displayed pixel coordinates. Rust loads the original with its EXIF rotation applied, runs the operations, and re-encodes in the same format (JPEG at quality 92), keeping the colour profile and EXIF. The orientation flag is reset, because the pixels are already rotated. It always writes to a temporary file first. *Save as copy* then renames it to `name (edited).jpg`; *Replace* moves the original to the Trash and renames the temporary file into its place. Animated GIFs can't be edited, since saving would drop their frames.
@@ -182,8 +185,9 @@ src-tauri/
 ├─ src/
 │  ├─ lib.rs             app setup: plugins, state, protocol, commands
 │  ├─ library.rs         open_path, trash_image, folder scanning
-│  ├─ thumbs.rs          thumb:// protocol and thumbnail cache
+│  ├─ thumbs.rs          thumb:// and preview:// protocols, disk cache
 │  ├─ imaging.rs         shared loader: EXIF rotation, colour profile, EXIF
+│  ├─ heic/              HEIC / HEIF: mod.rs (shared), imageio.rs (macOS decoder)
 │  ├─ edit/              apply_edits: EditOp pipeline (mod.rs), crop.rs, adjust.rs + color.rs, output.rs (safe saving)
 │  ├─ info.rs            image_info (dimensions, EXIF)
 │  ├─ state.rs           allowed folders + thumbnail semaphore
@@ -203,7 +207,7 @@ Releases are built by GitHub Actions (`.github/workflows/release.yml`) for macOS
    ```bash
    git checkout main
    git pull origin main
-   git tag -a v0.2.0 -m "Image Viewer 0.2.0"
+   git tag -a v0.2.0 -m "Spektro Photo 0.2.0"
    git push origin v0.2.0
    ```
 4. The workflow builds, signs and notarizes the macOS app, builds the Windows installers, and uploads everything to a **draft** release. Review it, then publish.
@@ -217,7 +221,8 @@ The workflow needs these repository secrets for macOS signing: `APPLE_CERTIFICAT
 - [ ] Code-sign the Windows installer
 - [x] Brightness, contrast, saturation and temperature
 - [ ] More edit tools: rotate / flip, resize
-- [ ] HEIC and RAW support
+- [x] HEIC / HEIF on macOS
+- [ ] Camera RAW support (Apple's ImageIO, used for HEIC, can also decode most RAW files on macOS)
 
 ## License
 

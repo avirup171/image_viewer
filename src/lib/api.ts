@@ -25,7 +25,13 @@ export type ImageInfo = {
   camera: MetaField[];
 };
 
-export const IMAGE_EXTS = ["jpg", "jpeg", "png", "gif", "webp", "bmp"];
+export const isMac = navigator.userAgent.includes("Mac");
+
+/** Mirrors `EXTS` in library.rs: HEIC / HEIF only on macOS (decoded in Rust by ImageIO). */
+export const IMAGE_EXTS = ["jpg", "jpeg", "png", "gif", "webp", "bmp", ...(isMac ? ["heic", "heif"] : [])];
+
+/** iPhone photos. Shown through preview:// and edited into a JPEG copy. */
+export const isHeic = (e: Pick<ImageEntry, "name">) => /\.(heic|heif)$/i.test(e.name);
 
 /** Open a folder, or an image (opens its folder with that image selected). */
 export const openPath = (path: string) => invoke<Folder>("open_path", { path });
@@ -41,12 +47,16 @@ export const applyEdits = (path: string, ops: EditOp[], mode: SaveMode) =>
  */
 export const versionOf = (e: ImageEntry) => `${e.modified}-${e.size}`;
 
-/** Full-size image, served as-is by Tauri's asset protocol. */
-export const fullSrc = (e: ImageEntry) => `${convertFileSrc(e.path)}?v=${versionOf(e)}`;
+/**
+ * Full-size image. Most formats are served as-is by Tauri's asset protocol.
+ * HEIC, which the webview can't always show, is decoded by Rust and served as
+ * a full-size JPEG by our preview:// protocol (thumbs.rs).
+ */
+export const fullSrc = (e: ImageEntry) =>
+  `${convertFileSrc(e.path, isHeic(e) ? "preview" : "asset")}?v=${versionOf(e)}`;
 /** Small cached preview, served by our own thumb:// protocol (thumbs.rs). */
 export const thumbSrc = (e: ImageEntry) => `${convertFileSrc(e.path, "thumb")}?v=${versionOf(e)}`;
 
-export const isMac = navigator.userAgent.includes("Mac");
 export const modKey = isMac ? "⌘" : "Ctrl+";
 
 export function formatBytes(n: number): string {

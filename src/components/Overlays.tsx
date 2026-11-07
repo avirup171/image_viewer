@@ -36,6 +36,7 @@ const SHORTCUTS: [string, string, string][] = [
   ["I", "—", "Toggle info"],
   ["F", "—", "Full screen"],
   ["⌫", "Move to Trash", "Move to Trash"],
+  ["Tab, ⌫", "Remove a recent folder from the list", "—"],
   [`${modKey}Z`, "Undo trash", "Undo trash"],
   [`${modKey}F`, "Filter by name", "—"],
   [`${modKey}O`, "Open folder", "Open folder"],

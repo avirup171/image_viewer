@@ -3,8 +3,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { IMAGE_EXTS, openPath, trashImage, type Folder, type ImageEntry } from "./lib/api";
-import { addRecent, load, save, type Recent } from "./lib/storage";
+import { IMAGE_EXTS, isMac, openPath, trashImage, type Folder, type ImageEntry } from "./lib/api";
+import { addRecent, load, removeRecent, restoreRecent, save, type Recent } from "./lib/storage";
 import { Welcome } from "./components/Welcome";
 import { Library, THUMB_MAX, THUMB_MIN, type SortKey } from "./components/Library";
 import { Viewer } from "./components/Viewer";
@@ -175,6 +175,24 @@ export default function App() {
 
   const openRecent = useCallback((dir: string) => openAt(dir, true), [openAt]);
 
+  // Only the list entry goes; nothing on disk changes. Undo puts it back in place.
+  const forgetRecent = useCallback(
+    (dir: string) => {
+      const index = recents.findIndex((r) => r.dir === dir);
+      if (index === -1) return;
+      const removed = recents[index];
+      setRecents((list) => removeRecent(list, dir));
+      showToast(`Removed “${removed.name}” from recent folders`, 5000, {
+        label: "Undo",
+        run: () => {
+          setRecents((list) => restoreRecent(list, removed, index));
+          hideToast();
+        },
+      });
+    },
+    [recents, showToast, hideToast],
+  );
+
   // Stable callbacks for the memoized grid tiles.
   const selectTile = useCallback((path: string) => setSelectedPath(path), []);
   const openTile = useCallback((path: string) => {
@@ -186,7 +204,7 @@ export default function App() {
   function startEdit(entry: ImageEntry | undefined, tool: string) {
     if (!entry) return;
     if (!canEdit(entry)) {
-      showToast("Only JPEG, PNG, WebP and BMP images can be edited.");
+      showToast(`Only JPEG, PNG, WebP, BMP${isMac ? " and HEIC" : ""} images can be edited.`);
       return;
     }
     commitPending();
@@ -439,6 +457,7 @@ export default function App() {
     screen = (
       <Welcome
         recents={recents}
+        onRemoveRecent={forgetRecent}
         dragging={dragging}
         onOpenFolder={pickFolder}
         onOpenImage={pickImage}
@@ -493,6 +512,7 @@ export default function App() {
         onThumbSize={setThumbSize}
         recents={recents}
         onOpenRecent={openRecent}
+        onRemoveRecent={forgetRecent}
         onOpenFolder={pickFolder}
         filterRef={filterRef}
         gridRef={gridRef}

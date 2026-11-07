@@ -1,5 +1,9 @@
-//! The `thumb://` custom protocol: like Tauri's asset protocol, except instead
-//! of serving the file as-is it decodes, resizes and caches a small preview.
+//! The `thumb://` and `preview://` custom protocols: like Tauri's asset
+//! protocol, except instead of serving the file as-is they decode it in Rust
+//! and cache the result on disk.
+//! - `thumb://`: a small preview for the grid, filmstrip and navigator.
+//! - `preview://`: the full-size image as JPEG, for formats the webview can't
+//!   display itself (HEIC). It keeps the colour profile (e.g. Display P3).
 //!
 //! Frontend: `convertFileSrc(path, "thumb")` builds the URL:
 //!   macOS/Linux: thumb://localhost/%2FUsers%2Fyou%2Fpics%2Fa.jpg
@@ -14,7 +18,10 @@ use std::{
     time::UNIX_EPOCH,
 };
 
-use image::{ImageFormat, codecs::jpeg::JpegEncoder};
+use image::{
+    DynamicImage, ImageEncoder, ImageFormat,
+    codecs::{jpeg::JpegEncoder, png::PngEncoder},
+};
 use percent_encoding::percent_decode_str;
 use tauri::{
     Manager, Runtime, UriSchemeContext, UriSchemeResponder,
@@ -32,18 +39,38 @@ use crate::{
 /// stays sharp on a 2x (Retina) display.
 const THUMB_MAX: u32 = 560;
 
+/// JPEG quality of full-size previews: high, since this is what the viewer shows.
+const PREVIEW_QUALITY: u8 = 90;
+
 struct Thumb {
     bytes: Vec<u8>,
     mime: &'static str,
 }
 
+/// What a request is for.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum Kind {
+    Thumb,
+    Preview,
+}
+
 /// Registered in lib.rs with `register_asynchronous_uri_scheme_protocol`.
 /// "Asynchronous" means we get a `responder` and can answer later, so slow
 /// decodes don't block the webview's other requests.
-pub fn handle<R: Runtime>(
+pub fn handle<R: Runtime>(ctx: UriSchemeContext<'_, R>, req: Request<Vec<u8>>, responder: UriSchemeResponder) {
+    serve(ctx, req, responder, Kind::Thumb);
+}
+
+/// The `preview://` scheme (full size). Same checks, permits and cache as thumbnails.
+pub fn handle_preview<R: Runtime>(ctx: UriSchemeContext<'_, R>, req: Request<Vec<u8>>, responder: UriSchemeResponder) {
+    serve(ctx, req, responder, Kind::Preview);
+}
+
+fn serve<R: Runtime>(
     ctx: UriSchemeContext<'_, R>,
     req: Request<Vec<u8>>,
     responder: UriSchemeResponder,
+    kind: Kind,
 ) {
     let app = ctx.app_handle().clone();
     // The path is everything after the leading "/", percent-encoded.
@@ -60,10 +87,10 @@ pub fn handle<R: Runtime>(
                     .path()
                     .app_cache_dir()
                     .map(|d| d.join("thumbs"))
-                    .unwrap_or_else(|_| std::env::temp_dir().join("image_viewer_thumbs"));
+                    .unwrap_or_else(|_| std::env::temp_dir().join("spektro_photo_thumbs"));
 
                 let result =
-                    tauri::async_runtime::spawn_blocking(move || make_thumb(&src, &cache_dir))
+                    tauri::async_runtime::spawn_blocking(move || make(&src, &cache_dir, kind))
                         .await;
 
                 match result {
@@ -98,8 +125,8 @@ fn resolve(state: &AppState, raw: &str) -> AppResult<PathBuf> {
     Ok(path)
 }
 
-fn make_thumb(src: &Path, cache_dir: &Path) -> AppResult<Thumb> {
-    // Cache key = path + size + mtime, so an edited file gets a fresh thumbnail.
+fn make(src: &Path, cache_dir: &Path, kind: Kind) -> AppResult<Thumb> {
+    // Cache key = kind + path + size + mtime, so an edited file gets a fresh image.
     // (DefaultHasher can change between Rust versions; that only causes misses.)
     let meta = fs::metadata(src)?;
     let mtime = meta
@@ -108,7 +135,7 @@ fn make_thumb(src: &Path, cache_dir: &Path) -> AppResult<Thumb> {
         .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
         .map_or(0, |d| d.as_nanos());
     let mut h = DefaultHasher::new();
-    (src, meta.len(), mtime, THUMB_MAX).hash(&mut h);
+    (kind, src, meta.len(), mtime, THUMB_MAX).hash(&mut h);
     let key = format!("{:016x}", h.finish());
 
     for (ext, mime) in [("jpg", "image/jpeg"), ("png", "image/png")] {
@@ -117,21 +144,27 @@ fn make_thumb(src: &Path, cache_dir: &Path) -> AppResult<Thumb> {
         }
     }
 
-    // Decode, honouring EXIF orientation so portrait photos aren't sideways.
-    let img = imaging::open_oriented(src)?.image;
-
-    // `thumbnail` is a fast resize that keeps aspect ratio and never upscales
-    // past THUMB_MAX on the longest edge.
-    let small = img.thumbnail(THUMB_MAX, THUMB_MAX);
-
-    // JPEG is much smaller, but has no transparency; keep PNG for images with alpha.
     let mut bytes = Vec::new();
-    let (ext, mime) = if small.color().has_alpha() {
-        small.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)?;
-        ("png", "image/png")
-    } else {
-        JpegEncoder::new_with_quality(&mut bytes, 82).encode_image(&small.to_rgb8())?;
-        ("jpg", "image/jpeg")
+    let (ext, mime) = match kind {
+        Kind::Thumb => {
+            // Decoded upright and at most THUMB_MAX on the longest edge
+            // (`thumbnail` is a fast resize that never upscales).
+            let small = imaging::open_scaled(src, THUMB_MAX)?;
+            // JPEG is much smaller, but has no transparency; keep PNG for images with alpha.
+            if small.color().has_alpha() {
+                small.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)?;
+                ("png", "image/png")
+            } else {
+                JpegEncoder::new_with_quality(&mut bytes, 82).encode_image(&small.to_rgb8())?;
+                ("jpg", "image/jpeg")
+            }
+        }
+        Kind::Preview => {
+            // Full size, so the viewer's 100% zoom and the editor's crop
+            // coordinates match the real pixels.
+            let loaded = imaging::open_oriented(src)?;
+            encode_preview(&loaded.image, loaded.icc_profile.as_deref(), &mut bytes)?
+        }
     };
 
     // Best effort: a failed cache write just means we regenerate next time.
@@ -146,10 +179,64 @@ fn make_thumb(src: &Path, cache_dir: &Path) -> AppResult<Thumb> {
     Ok(Thumb { bytes, mime })
 }
 
+/// JPEG (or PNG when there's transparency), with the colour profile embedded
+/// so the webview shows wide-gamut photos with the right colours.
+fn encode_preview(img: &DynamicImage, icc: Option<&[u8]>, out: &mut Vec<u8>) -> AppResult<(&'static str, &'static str)> {
+    if img.color().has_alpha() {
+        let mut enc = PngEncoder::new(out);
+        if let Some(icc) = icc {
+            let _ = enc.set_icc_profile(icc.to_vec());
+        }
+        DynamicImage::ImageRgba8(img.to_rgba8()).write_with_encoder(enc)?;
+        Ok(("png", "image/png"))
+    } else {
+        let mut enc = JpegEncoder::new_with_quality(out, PREVIEW_QUALITY);
+        if let Some(icc) = icc {
+            let _ = enc.set_icc_profile(icc.to_vec());
+        }
+        DynamicImage::ImageRgb8(img.to_rgb8()).write_with_encoder(enc)?;
+        Ok(("jpg", "image/jpeg"))
+    }
+}
+
 fn error_response(status: StatusCode, msg: &str) -> Response<Vec<u8>> {
     Response::builder()
         .status(status)
         .header(header::CONTENT_TYPE, "text/plain")
         .body(msg.as_bytes().to_vec())
         .unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::imaging::test_support::{temp_dir, write_jpeg};
+
+    #[test]
+    fn previews_and_thumbs_are_cached_separately() {
+        let dir = temp_dir("preview");
+        let src = dir.join("big.jpg");
+        write_jpeg(&src, 1200, 800, "Cam", 1);
+        let cache = dir.join("cache");
+
+        let thumb = make(&src, &cache, Kind::Thumb).unwrap();
+        let full = make(&src, &cache, Kind::Preview).unwrap();
+        assert_eq!(image::load_from_memory(&thumb.bytes).unwrap().width(), THUMB_MAX);
+        let full_img = image::load_from_memory(&full.bytes).unwrap();
+        assert_eq!((full_img.width(), full_img.height()), (1200, 800), "full size");
+        assert_eq!(fs::read_dir(&cache).unwrap().count(), 2);
+
+        // Second request comes from the cache, byte for byte.
+        assert_eq!(make(&src, &cache, Kind::Preview).unwrap().bytes, full.bytes);
+    }
+
+    #[test]
+    fn preview_keeps_the_colour_profile() {
+        let mut out = Vec::new();
+        let icc = b"not-a-real-profile-but-kept-as-is".to_vec();
+        encode_preview(&DynamicImage::new_rgb8(8, 8), Some(&icc), &mut out).unwrap();
+        let mut dec = image::codecs::jpeg::JpegDecoder::new(std::io::Cursor::new(&out)).unwrap();
+        use image::ImageDecoder;
+        assert_eq!(dec.icc_profile().unwrap(), Some(icc));
+    }
 }

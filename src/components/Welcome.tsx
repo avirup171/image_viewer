@@ -1,6 +1,7 @@
 import type { Recent } from "../lib/storage";
 import { modKey } from "../lib/api";
-import { FolderIcon, PhotoIcon } from "./Icons";
+import { CloseIcon, FolderIcon, PhotoIcon } from "./Icons";
+import { removeOnDelete } from "./recentKeys";
 
 type Props = {
   recents: Recent[];
@@ -8,9 +9,10 @@ type Props = {
   onOpenFolder: () => void;
   onOpenImage: () => void;
   onOpenRecent: (dir: string) => void;
+  onRemoveRecent: (dir: string) => void;
 };
 
-export function Welcome({ recents, dragging, onOpenFolder, onOpenImage, onOpenRecent }: Props) {
+export function Welcome({ recents, dragging, onOpenFolder, onOpenImage, onOpenRecent, onRemoveRecent }: Props) {
   return (
     <div className="welcome">
       <div className="welcome-inner">
@@ -32,18 +34,28 @@ export function Welcome({ recents, dragging, onOpenFolder, onOpenImage, onOpenRe
           <section className="recents">
             <h2 className="eyebrow">Recent folders</h2>
             {recents.map((r) => (
-              <button key={r.dir} className="recent" onClick={() => onOpenRecent(r.dir)}>
-                <span className="recent-icon">
-                  <FolderIcon size={20} />
-                </span>
-                <span className="recent-text">
-                  <span className="recent-name">{r.name}</span>
-                  <span className="muted small ellipsis">{r.dir}</span>
-                </span>
-                <span className="muted small">
-                  {r.count} {r.count === 1 ? "image" : "images"}
-                </span>
-              </button>
+              <div key={r.dir} className="recent-row" onKeyDown={removeOnDelete(() => onRemoveRecent(r.dir))}>
+                <button className="recent" onClick={() => onOpenRecent(r.dir)}>
+                  <span className="recent-icon">
+                    <FolderIcon size={20} />
+                  </span>
+                  <span className="recent-text">
+                    <span className="recent-name">{r.name}</span>
+                    <span className="muted small ellipsis">{r.dir}</span>
+                  </span>
+                  <span className="muted small">
+                    {r.count} {r.count === 1 ? "image" : "images"}
+                  </span>
+                </button>
+                <button
+                  className="remove-x"
+                  onClick={() => onRemoveRecent(r.dir)}
+                  aria-label={`Remove ${r.name} from recent folders`}
+                  title="Remove from recent folders (⌫). The folder itself isn’t touched."
+                >
+                  <CloseIcon size={16} />
+                </button>
+              </div>
             ))}
           </section>
         )}

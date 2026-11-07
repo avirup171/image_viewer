@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    image_viewer_lib::run()
+    spektro_photo_lib::run()
 }

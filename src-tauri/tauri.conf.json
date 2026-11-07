@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Image Viewer",
+  "productName": "Spektro Photo",
   "version": "0.1.2",
   "identifier": "com.avirup171.image-viewer",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Image Viewer",
+        "title": "Spektro Photo",
         "width": 1200,
         "height": 800,
         "minWidth": 640,
@@ -42,6 +42,11 @@
     "shortDescription": "A fast, simple image viewer",
     "macOS": {
       "signingIdentity": "-"
+    },
+    "windows": {
+      "wix": {
+        "upgradeCode": "b1b122b5-0874-5ce5-b04c-9d6a42b839c8"
+      }
     },
     "copyright": "Copyright © 2026 Avirup Basu",
     "license": "MIT"

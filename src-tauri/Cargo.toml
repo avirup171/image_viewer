@@ -1,5 +1,5 @@
 [package]
-name = "image_viewer"
+name = "spektro_photo"
 version = "0.1.2"
 description = "A fast, simple image viewer"
 authors = ["Avirup Basu"]
@@ -12,7 +12,7 @@ edition = "2024"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "image_viewer_lib"
+name = "spektro_photo_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -36,6 +36,13 @@ trash = "5"
 percent-encoding = "2"
 # Semaphore to cap how many thumbnails are generated at once
 tokio = { version = "1", features = ["sync"] }
+
+# HEIC / HEIF decoding through Apple's ImageIO framework, macOS only (src/heic/).
+# Tauri already uses these crates on macOS; versions match its Cargo.lock entries.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-foundation = "0.3.2"
+objc2-core-graphics = "0.3.2"
+objc2-image-io = "0.3.2"
 
 # Image decoding is very slow in unoptimized debug builds. Optimize just the
 # dependencies so `tauri dev` thumbnails are usable, while your own crate still

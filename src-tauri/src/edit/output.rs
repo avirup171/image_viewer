@@ -53,13 +53,19 @@ pub fn save(image: &DynamicImage, source: &LoadedImage, original: &Path, mode: S
 
     match mode {
         SaveMode::NewFile => {
-            let dest = unique_edited_path(original);
+            // HEIC can't be written back, so its edits become "<name> (edited).jpg".
+            let dest = unique_edited_path(original, source.from_heic.then_some("jpg"));
             fs::rename(&tmp, &dest).inspect_err(|_| {
                 let _ = fs::remove_file(&tmp);
             })?;
             Ok(dest)
         }
         SaveMode::Replace => {
+            // Replacing would silently change the file's format (run_edit checks this too).
+            if source.from_heic {
+                let _ = fs::remove_file(&tmp);
+                return Err(AppError::InvalidEdit(super::HEIC_REPLACE.into()));
+            }
             // Trash first: if that fails, the original is still in place.
             if let Err(e) = trash::delete(original) {
                 let _ = fs::remove_file(&tmp);
@@ -109,10 +115,14 @@ fn encode<E: ImageEncoder>(image: &DynamicImage, source: &LoadedImage, mut encod
 /// "IMG_1.jpg" → "IMG_1 (edited).jpg", then "(edited 2)", "(edited 3)"…
 /// Editing "IMG_1 (edited).jpg" again gives "IMG_1 (edited 2).jpg", not
 /// "IMG_1 (edited) (edited).jpg".
-pub fn unique_edited_path(original: &Path) -> PathBuf {
+/// `ext` replaces the original's extension (`Some("jpg")` for an edited HEIC).
+pub fn unique_edited_path(original: &Path, ext: Option<&str>) -> PathBuf {
     let dir = original.parent().unwrap_or(Path::new("."));
     let stem = original.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-    let ext = original.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
+    let ext = match ext {
+        Some(e) => format!(".{e}"),
+        None => original.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default(),
+    };
     let base = strip_edited_suffix(&stem);
 
     (1..)
@@ -154,9 +164,15 @@ mod tests {
 
         let dir = temp_dir("names");
         let p = dir.join("IMG_1 (edited).jpg");
-        assert_eq!(unique_edited_path(&p), dir.join("IMG_1 (edited).jpg"));
+        assert_eq!(unique_edited_path(&p, None), dir.join("IMG_1 (edited).jpg"));
         fs::write(dir.join("IMG_1 (edited).jpg"), b"x").unwrap();
-        assert_eq!(unique_edited_path(&p), dir.join("IMG_1 (edited 2).jpg"));
+        assert_eq!(unique_edited_path(&p, None), dir.join("IMG_1 (edited 2).jpg"));
+
+        // An edited HEIC is written as JPEG next to it.
+        let heic = dir.join("IMG_9.HEIC");
+        assert_eq!(unique_edited_path(&heic, Some("jpg")), dir.join("IMG_9 (edited).jpg"));
+        fs::write(dir.join("IMG_9 (edited).jpg"), b"x").unwrap();
+        assert_eq!(unique_edited_path(&heic, Some("jpg")), dir.join("IMG_9 (edited 2).jpg"));
     }
 
     #[test]

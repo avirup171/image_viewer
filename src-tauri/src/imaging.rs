@@ -10,12 +10,18 @@ use std::path::Path;
 
 use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, metadata::Orientation};
 
-use crate::error::{AppError, AppResult};
+use crate::{
+    error::{AppError, AppResult},
+    heic,
+};
 
 pub struct LoadedImage {
     /// Pixels, already rotated per EXIF orientation.
     pub image: DynamicImage,
+    /// The format edits are saved in: the original's, or JPEG for HEIC.
     pub format: ImageFormat,
+    /// Decoded from HEIC / HEIF (macOS). Edits then become a JPEG copy.
+    pub from_heic: bool,
     /// Colour profile (e.g. Display P3 from an iPhone), kept so colours don't shift.
     pub icc_profile: Option<Vec<u8>>,
     /// Raw EXIF (TIFF) block with orientation reset to "normal" and the
@@ -24,6 +30,9 @@ pub struct LoadedImage {
 }
 
 pub fn open_oriented(path: &Path) -> AppResult<LoadedImage> {
+    if heic::is_heic(path) {
+        return open_heic(path);
+    }
     let reader = ImageReader::open(path)?.with_guessed_format()?;
     let format = reader
         .format()
@@ -33,16 +42,44 @@ pub fn open_oriented(path: &Path) -> AppResult<LoadedImage> {
     let orientation = decoder.orientation()?;
     // Metadata is optional; a failure to read it never blocks opening the image.
     let icc_profile = decoder.icc_profile().ok().flatten();
-    let exif = decoder.exif_metadata().ok().flatten().map(|mut chunk| {
-        let _ = Orientation::remove_from_exif_chunk(&mut chunk);
-        unlink_exif_thumbnail(&mut chunk);
-        chunk
-    });
+    let exif = decoder.exif_metadata().ok().flatten().map(clean_exif);
 
     let mut image = DynamicImage::from_decoder(decoder)?;
     image.apply_orientation(orientation);
 
-    Ok(LoadedImage { image, format, icc_profile, exif })
+    Ok(LoadedImage { image, format, from_heic: false, icc_profile, exif })
+}
+
+/// HEIC through the platform decoder (`heic/`). Its pixels arrive already
+/// upright, but iPhone files still carry an EXIF orientation flag, so it is
+/// reset here too. Edits are saved as JPEG (`format`).
+fn open_heic(path: &Path) -> AppResult<LoadedImage> {
+    let decoded = heic::decode(path, None)?;
+    Ok(LoadedImage {
+        image: decoded.image,
+        format: ImageFormat::Jpeg,
+        from_heic: true,
+        icc_profile: decoded.icc_profile,
+        exif: heic::exif_block(path).map(clean_exif),
+    })
+}
+
+/// For display only (thumbnails): at most `max` pixels on the longest edge,
+/// rotated upright. HEIC is decoded straight at that size, which is much
+/// faster than decoding a 12-megapixel photo and then shrinking it.
+pub fn open_scaled(path: &Path, max: u32) -> AppResult<DynamicImage> {
+    if heic::is_heic(path) {
+        return Ok(heic::decode(path, Some(max))?.image);
+    }
+    Ok(open_oriented(path)?.image.thumbnail(max, max))
+}
+
+/// Orientation reset to "normal" (the pixels are rotated already) and the
+/// embedded preview thumbnail unlinked.
+fn clean_exif(mut chunk: Vec<u8>) -> Vec<u8> {
+    let _ = Orientation::remove_from_exif_chunk(&mut chunk);
+    unlink_exif_thumbnail(&mut chunk);
+    chunk
 }
 
 /// EXIF can embed a small preview of the *original* image (IFD1). After a crop
@@ -119,7 +156,7 @@ pub mod test_support {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("image-viewer-test-{name}-{nanos}"));
+        let dir = std::env::temp_dir().join(format!("spektro-photo-test-{name}-{nanos}"));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -157,6 +194,31 @@ mod tests {
 
         let exif = loaded.exif.expect("exif kept");
         assert_eq!(Orientation::from_exif_chunk(&exif), Some(Orientation::NoTransforms));
+        assert!(!loaded.from_heic);
+    }
+
+    #[test]
+    fn heic_exif_is_cleaned_on_every_platform() {
+        // The fixture's EXIF says "rotate 90°" (6); after loading it must say "normal".
+        let raw = heic::exif_block(&heic_fixture()).unwrap();
+        assert_eq!(Orientation::from_exif_chunk(&raw), Some(Orientation::Rotate90));
+        assert_eq!(Orientation::from_exif_chunk(&clean_exif(raw)), Some(Orientation::NoTransforms));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn opens_heic_upright_for_editing() {
+        let loaded = open_oriented(&heic_fixture()).unwrap();
+        assert!(loaded.from_heic);
+        assert_eq!(loaded.format, ImageFormat::Jpeg);
+        assert_eq!((loaded.image.width(), loaded.image.height()), (40, 60));
+        assert_eq!(Orientation::from_exif_chunk(&loaded.exif.unwrap()), Some(Orientation::NoTransforms));
+        let thumb = open_scaled(&heic_fixture(), 30).unwrap();
+        assert_eq!((thumb.width(), thumb.height()), (20, 30));
+    }
+
+    fn heic_fixture() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/rotated.heic")
     }
 
     #[test]
