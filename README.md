@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="../../releases/latest"><b>Download the latest release</b></a>
-  &nbsp;·&nbsp; Current version: 0.1.2 &nbsp;·&nbsp;
+  &nbsp;·&nbsp; Current version: 0.1.3 &nbsp;·&nbsp;
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -18,15 +18,15 @@
 
 ![Viewer with the info panel open](docs/screenshot-viewer.jpg)
 
-## What's new in 0.1.2
+## What's new in 0.1.3
 
-**Adjust colours.** Press <kbd>A</kbd> in the grid or viewer, or click the adjust button, to open the editor on the new Adjust panel.
+**Image Viewer is now called Spektro Photo.** Same app, new name. Your settings, recent folders and thumbnails carry over.
+On a Mac, delete the old *Image Viewer* app after installing. On Windows the `.msi` upgrades in place; if you use the `-setup.exe`, uninstall *Image Viewer* from Settings → Apps.
 
-- Sliders for **temperature**, **brightness**, **contrast** and **saturation**, from −100 to +100.
-- A live preview that matches the saved file. It stays on while you crop, so a crop and an adjustment are saved together in one file.
-- <kbd>Tab</kbd> between sliders and use the arrow keys to change one (<kbd>Shift</kbd> for steps of 10). Double-click a slider to reset it, or use **Reset all**.
-- Switch between Crop and Adjust inside the editor with <kbd>C</kbd> and <kbd>A</kbd>.
-- As with crop: **Save as copy** or **Replace original** (the original goes to the Trash), and camera data and colour profiles are kept.
+- **HEIC / HEIF photos on macOS** (iPhone photos): browse, view, zoom, read camera details, crop and adjust. They're decoded in Rust with Apple's ImageIO, so rotation and wide-gamut colour are kept. Edits are saved as a JPEG copy; *Replace original* isn't available for HEIC.
+- **Remove a folder from the recent list** with the × that appears on hover, or focus it and press <kbd>⌫</kbd>. Only the list entry goes, never the folder, and Undo puts it back.
+
+Colour adjustments (temperature, brightness, contrast, saturation, press <kbd>A</kbd>) arrived in 0.1.2.
 
 The crop editor arrived in 0.1.1:
 

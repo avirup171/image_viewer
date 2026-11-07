@@ -6,6 +6,8 @@ All notable changes to Spektro Photo (formerly Image Viewer) are listed here. Th
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-07
+
 ### Changed
 - **Image Viewer is now called Spektro Photo.** Your settings, recent folders and thumbnail cache carry over.
   - **Mac:** after installing, delete the old *Image Viewer* app from Applications.
@@ -79,7 +81,8 @@ First release.
 - Remembers window size, thumbnail size, sort order and recent folders.
 - Installers for macOS (Apple Silicon, `.dmg`) and Windows (`.msi` and `-setup.exe`), built by GitHub Actions.
 
-[Unreleased]: https://github.com/avirup171/spektro-photo/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/avirup171/spektro-photo/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/avirup171/spektro-photo/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/avirup171/spektro-photo/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/avirup171/spektro-photo/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/avirup171/spektro-photo/releases/tag/v0.1.0
