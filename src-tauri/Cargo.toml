@@ -1,6 +1,6 @@
 [package]
 name = "spektro_photo"
-version = "0.1.2"
+version = "0.1.3"
 description = "A fast, simple image viewer"
 authors = ["Avirup Basu"]
 license = "MIT"
